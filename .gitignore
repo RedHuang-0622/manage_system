@@ -1,0 +1,31 @@
+# --- Binaries ---
+bin/
+*.exe
+*.exe~
+*.test
+*.out
+
+# --- Logs ---
+logs/
+*.log
+
+# --- Sensitive config ---
+backend/conf/config.yaml
+
+# --- IDE ---
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- Dependencies ---
+vendor/
+
+# --- Coverage ---
+coverage.out
+*.coverprofile

@@ -1,0 +1,227 @@
+{
+  "title": "实验室资产与人员管理系统",
+  "author": "manage_system",
+  "style": "B",
+  "theme": "ikb",
+  "slides": [
+    {
+      "layout": "hero_cover",
+      "theme_class": "hero dark",
+      "kicker": "Go · Gin · MySQL · Redis",
+      "title": "实验室资产与人员\n管理系统",
+      "subtitle": "先进计算与知识工程实验室",
+      "lead": "基于 Go 的单体 REST API 后端，涵盖身份访问管理、设备资产管理与借阅工单三大模块，采用分层架构、JWT + Casbin 双重授权与 Redis 缓存策略。",
+      "meta": "V1.3 · 2026"
+    },
+    {
+      "layout": "big_numbers",
+      "theme_class": "light",
+      "kicker": "系统规模",
+      "title": "项目关键指标",
+      "lead": "完整的三层 REST API 系统，从路由到数据访问逐层解耦",
+      "stats": [
+        { "label": "REST API 端点", "number": "21", "note": "含 1 个健康检查 + 20 个业务接口" },
+        { "label": "系统角色", "number": "3", "note": "super_admin / lab_admin / member" },
+        { "label": "中间件层数", "number": "6", "note": "Recovery → RequestID → CORS → Logger → Auth → Casbin" },
+        { "label": "数据表", "number": "4", "note": "sys_users / sys_roles / lab_equipments / borrow_records" }
+      ]
+    },
+    {
+      "layout": "pipeline",
+      "theme_class": "light",
+      "kicker": "Tech Stack",
+      "title": "技术栈全景",
+      "pipelines": [
+        {
+          "label": "核心框架",
+          "steps": [
+            { "nb": 1, "title": "Gin v1.9", "desc": "HTTP 路由、中间件链、请求参数绑定与校验" },
+            { "nb": 2, "title": "GORM v1.25", "desc": "ORM 映射、连接池管理、事务与行级锁 (FOR UPDATE)" },
+            { "nb": 3, "title": "MySQL 8.0+", "desc": "InnoDB 存储引擎，支撑 Casbin 策略持久化" }
+          ]
+        },
+        {
+          "label": "安全与基础设施",
+          "steps": [
+            { "nb": 4, "title": "JWT v5 + Redis", "desc": "HMAC-SHA256 签名 + 黑名单退登 + Token 刷新" },
+            { "nb": 5, "title": "Casbin v2 + GORM Adapter", "desc": "RBAC 模型：keyMatch2 + regexMatch，策略 MySQL 持久化" },
+            { "nb": 6, "title": "Zap + Lumberjack", "desc": "结构化 JSON 日志 + 自动轮转压缩" }
+          ]
+        },
+        {
+          "label": "工程化",
+          "steps": [
+            { "nb": 7, "title": "Viper", "desc": "YAML 配置 + 环境变量覆盖 (LAB_ 前缀)" },
+            { "nb": 8, "title": "Graceful Shutdown", "desc": "SIGTERM 信号捕获 → 等 5s → 关闭连接池" },
+            { "nb": 9, "title": "Testify + SQLite + MiniRedis", "desc": "独立 test 模块，SQLite 内存库替代 MySQL 做单测" }
+          ]
+        }
+      ]
+    },
+    {
+      "layout": "pipeline",
+      "theme_class": "light",
+      "kicker": "Architecture",
+      "title": "分层架构设计",
+      "pipelines": [
+        {
+          "label": "请求链路",
+          "steps": [
+            { "nb": 1, "title": "Router 层", "desc": "Gin 路由注册，public/protected 两组，中间件挂载" },
+            { "nb": 2, "title": "Controller 层", "desc": "参数绑定 (ShouldBindJSON/Query)，调用 Service，统一 JSON 响应" },
+            { "nb": 3, "title": "Service 层", "desc": "核心业务逻辑，事务编排，缓存策略，二级鉴权 (资源归属检查)" }
+          ]
+        },
+        {
+          "label": "数据链路",
+          "steps": [
+            { "nb": 4, "title": "DAO 层", "desc": "GORM 接口化数据访问，暴露 GetForUpdate(tx) 供事务使用" },
+            { "nb": 5, "title": "Models 层", "desc": "GORM 实体定义，Tag 驱动校验与索引，状态机约束" },
+            { "nb": 6, "title": "MySQL + Redis", "desc": "InnoDB 行锁保障并发安全，Redis 缓存热点设备数据 + JWT 黑名单" }
+          ]
+        }
+      ]
+    },
+    {
+      "layout": "big_numbers",
+      "theme_class": "light",
+      "kicker": "API Surface",
+      "title": "暴露的 REST API 接口",
+      "lead": "全部挂载于 /api/v1，分 public 与 protected 两组路由",
+      "stats": [
+        { "label": "IAM 认证授权", "number": "6", "note": "login / logout / refresh / users CRUD + disable + password" },
+        { "label": "设备资产管理", "number": "5", "note": "equipments CRUD + disable (软删除 + 事务保护)" },
+        { "label": "借阅工单", "number": "6", "note": "apply / approve / return / cancel / my / pending / all" },
+        { "label": "基础设施", "number": "1", "note": "GET /health — DB + Redis 双检存活" }
+      ]
+    },
+    {
+      "layout": "pipeline",
+      "theme_class": "light",
+      "kicker": "Middleware Chain",
+      "title": "中间件责任链设计",
+      "pipelines": [
+        {
+          "label": "全局中间件 (所有请求)",
+          "steps": [
+            { "nb": 1, "title": "Recovery", "desc": "捕获 panic，记录完整调用栈，返回 500 而非崩溃" },
+            { "nb": 2, "title": "RequestID", "desc": "每请求生成 UUID，优先使用客户端携带的 X-Request-ID" },
+            { "nb": 3, "title": "CORS", "desc": "允许所有来源与方法，标准头透传" }
+          ]
+        },
+        {
+          "label": "Protected 组专用",
+          "steps": [
+            { "nb": 4, "title": "Logger", "desc": "Zap 结构化输出：latency、status、method、path、request_id" },
+            { "nb": 5, "title": "Auth (JWT)", "desc": "Token 解析 → 黑名单检查 → Claims 注入 context；login 接口额外挂 RateLimit (10/min/IP)" },
+            { "nb": 6, "title": "Casbin (RBAC)", "desc": "keyMatch2 匹配 RESTful URL + regexMatch 匹配 HTTP Method → 策略 MySQL 持久化" }
+          ]
+        }
+      ]
+    },
+    {
+      "layout": "compare",
+      "theme_class": "light",
+      "kicker": "Design Decision",
+      "title": "认证与授权：双重机制",
+      "left": {
+        "kicker": "Layer 1",
+        "title": "Casbin 中间件",
+        "items": [
+          "HTTP 层路径-角色匹配",
+          "keyMatch2 通配符 + regexMatch",
+          "策略存 MySQL，gorm-adapter",
+          "role 继承: super_admin > lab_admin",
+          "无法表达「我的资源」语义"
+        ]
+      },
+      "right": {
+        "kicker": "Layer 2",
+        "title": "Service 层鉴权",
+        "items": [
+          "资源归属检查 (member 只能操作自己的借阅)",
+          "业务上下文相关判断",
+          "填补 Casbin 无法表达的细粒度规则",
+          "与 Casbin 互补，不做重复校验",
+          "Controller 层不做权限判断"
+        ]
+      }
+    },
+    {
+      "layout": "pipeline",
+      "theme_class": "light",
+      "kicker": "Concurrency Design",
+      "title": "借阅状态机与并发控制",
+      "pipelines": [
+        {
+          "label": "状态转换 (ValidTransitions)",
+          "steps": [
+            { "nb": 1, "title": "申请中 Applied", "desc": "用户提交借阅申请，记录 user_id + equipment_id + quantity" },
+            { "nb": 2, "title": "已借出 Borrowed", "desc": "管理员审批通过，开启 DB 事务 + FOR UPDATE 锁行 → 扣减 available_stock → 提交" },
+            { "nb": 3, "title": "已归还 Returned", "desc": "归还事务：FOR UPDATE 锁行 → 恢复 available_stock → 提交 (终态)" }
+          ]
+        },
+        {
+          "label": "防御性状态",
+          "steps": [
+            { "nb": 4, "title": "已拒绝 Rejected", "desc": "管理员驳回申请，释放预占 (终态)" },
+            { "nb": 5, "title": "已取消 Canceled", "desc": "用户在审批前可自行取消 (终态)" },
+            { "nb": 6, "title": "防超卖", "desc": "SELECT ... FOR UPDATE 行级锁 + 库存校验，保证并发审批不会超发" }
+          ]
+        }
+      ]
+    },
+    {
+      "layout": "big_numbers",
+      "theme_class": "light",
+      "kicker": "Cache Strategy",
+      "title": "Redis 缓存策略设计",
+      "lead": "分级 TTL + 异步失效 + 缓存键模式匹配批量清除",
+      "stats": [
+        { "label": "设备详情缓存", "number": "60s", "note": "key: equip:detail:{id}，命中后跳过 DB 查询" },
+        { "label": "设备列表缓存", "number": "30s", "note": "key: equip:list:{page}:{size}:{filters}，翻页/筛选各自独立" },
+        { "label": "JWT 黑名单", "number": "TTL=剩余有效期", "note": "SHA-256(token) → Redis，logout/refresh 时写入" },
+        { "label": "异步失效", "number": "safego.Go()", "note": "goroutine + panic recovery，SCAN equip:list:* 批量删除" }
+      ]
+    },
+    {
+      "layout": "big_quote",
+      "theme_class": "hero dark",
+      "kicker": "Design Philosophy",
+      "quote": "每一层只做自己该做的事，通过接口而不是具体类型通信。",
+      "source": "— 分层架构核心原则",
+      "source_meta": "Controller → Service (interface) → DAO (interface) → MySQL/Redis"
+    },
+    {
+      "layout": "pipeline",
+      "theme_class": "light",
+      "kicker": "Error & Interface Design",
+      "title": "错误处理与接口抽象",
+      "pipelines": [
+        {
+          "label": "统一错误码体系",
+          "steps": [
+            { "nb": 1, "title": "4 类错误码", "desc": "1xxx 通用 / 2xxx 认证 / 3xxx 业务 / 5xxx 系统，集中定义于 pkg/errcode" },
+            { "nb": 2, "title": "Service 层返回", "desc": "格式 [code] message，如 [3004] 设备库存不足，不做 HTTP 感知" },
+            { "nb": 3, "title": "Controller 层转译", "desc": "parseServiceError() → codeToHTTP() 映射到标准 HTTP 状态码" }
+          ]
+        },
+        {
+          "label": "DAO 接口化设计",
+          "steps": [
+            { "nb": 4, "title": "UserDAO / EquipmentDAO / BorrowDAO", "desc": "interface 定义与 GORM 实现分离，service 依赖接口而非具体类型" },
+            { "nb": 5, "title": "事务方法", "desc": "GetForUpdate(tx, id) + UpdateWithTx(tx, record)，由 service 控制事务边界" },
+            { "nb": 6, "title": "跨模块解耦", "desc": "BorrowStatusChecker / EquipmentCacheInvalidator 接口，打破循环依赖" }
+          ]
+        }
+      ]
+    },
+    {
+      "layout": "closing",
+      "theme_class": "hero dark",
+      "title": "Thank You",
+      "lead": "分层解耦 · 接口抽象 · 并发安全 · 优雅降级",
+      "meta": "manage_system V1.3 · 先进计算与知识工程实验室 · 2026"
+    }
+  ]
+}

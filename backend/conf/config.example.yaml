@@ -1,0 +1,38 @@
+server:
+  port: 8080
+  mode: debug
+
+mysql:
+  host: 127.0.0.1
+  port: 3306
+  user: root
+  # 生产环境应通过环境变量 LAB_MYSQL_PASSWORD 覆盖
+  password: "your_mysql_password"
+  database: lab_manage
+  charset: utf8mb4
+  max_idle_conns: 10
+  max_open_conns: 100
+  conn_max_lifetime: 3600
+
+redis:
+  addr: 127.0.0.1:6379
+  password: ""
+  db: 0
+  pool_size: 100
+  min_idle_conns: 10
+
+jwt:
+  # 生产环境必须通过环境变量 LAB_JWT_SECRET 设置，长度 ≥ 32 字符
+  secret: "change-me-to-a-random-secret-at-least-32-chars"
+  expire: 7200
+  issuer: "lab-system"
+
+casbin:
+  model_path: "conf/rbac_model.conf"
+
+log:
+  path: "logs/app.log"
+  level: info
+  max_size: 100
+  max_backups: 30
+  max_age: 7
