@@ -30,6 +30,14 @@ jwt:
 casbin:
   model_path: "conf/rbac_model.conf"
 
+cors:
+  # 允许的前端源列表。生产环境应配置为具体域名。
+  # 留空则默认允许 localhost:5173 / localhost:3000（开发环境）。
+  # 设为 ["*"] 允许所有源（不推荐生产使用）。
+  allowed_origins:
+    - "http://localhost:5173"
+    - "http://localhost:3000"
+
 log:
   path: "logs/app.log"
   level: info

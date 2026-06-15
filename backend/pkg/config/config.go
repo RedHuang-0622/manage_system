@@ -14,6 +14,12 @@ type Config struct {
 	JWT    JWTConfig    `mapstructure:"jwt"`
 	Casbin CasbinConfig `mapstructure:"casbin"`
 	Log    LogConfig    `mapstructure:"log"`
+	CORS   CORSConfig   `mapstructure:"cors"`
+}
+
+// CORSConfig 跨域配置
+type CORSConfig struct {
+	AllowedOrigins []string `mapstructure:"allowed_origins"`
 }
 
 type ServerConfig struct {

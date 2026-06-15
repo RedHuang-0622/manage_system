@@ -24,6 +24,7 @@ type Dependencies struct {
 	Logger              *zap.Logger
 	RedisClient         *redis.Client
 	DB                  *gorm.DB
+	CORSAllowedOrigins  []string
 }
 
 func SetupRouter(deps Dependencies) *gin.Engine {
@@ -32,7 +33,9 @@ func SetupRouter(deps Dependencies) *gin.Engine {
 	// 全局中间件链
 	r.Use(middleware.Recovery(deps.Logger))
 	r.Use(middleware.RequestID())
-	r.Use(middleware.CORS())
+	r.Use(middleware.CORS(&middleware.CORSConfig{
+		AllowedOrigins: deps.CORSAllowedOrigins,
+	}))
 	r.Use(middleware.Logger(deps.Logger))
 
 	// 健康检查（验证 DB + Redis 连通性）

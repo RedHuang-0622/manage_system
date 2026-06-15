@@ -103,6 +103,7 @@ func main() {
 		Logger:              logger,
 		RedisClient:         rdb,
 		DB:                  db,
+		CORSAllowedOrigins:  cfg.CORS.AllowedOrigins,
 	})
 
 	// 11. 启动服务
