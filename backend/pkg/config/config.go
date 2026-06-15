@@ -67,8 +67,9 @@ type LogConfig struct {
 
 // DSN 构建 MySQL 连接字符串
 func (m MySQLConfig) DSN() string {
-	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s&parseTime=True&loc=Local",
-		m.User, m.Password, m.Host, m.Port, m.Database, m.Charset)
+	collation := "utf8mb4_unicode_ci"
+	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s&collation=%s&parseTime=True&loc=Local",
+		m.User, m.Password, m.Host, m.Port, m.Database, m.Charset, collation)
 }
 
 func Load(configPath string) (*Config, error) {
