@@ -53,7 +53,7 @@ dev-frontend: install ## Start frontend only
 
 stop: ## Kill all dev processes on ports 8080 and 5173
 	@echo "[stop] Killing processes on ports 8080, 5173..."
-	@powershell -Command "$$ports=@(8080,5173); foreach($$p in $$ports){Get-NetTCPConnection -LocalPort $$p -ErrorAction SilentlyContinue | ForEach-Object {Stop-Process -Id $$_.OwningProcess -Force -ErrorAction SilentlyContinue}}; Write-Host '  Done.'" 2>nul || true
+	@powershell -Command '$$ports=@(8080,5173); foreach($$p in $$ports){Get-NetTCPConnection -LocalPort $$p -ErrorAction SilentlyContinue | ForEach-Object {Stop-Process -Id $$_.OwningProcess -Force -ErrorAction SilentlyContinue}}; Write-Host "  Done."'
 	@echo ""
 
 ##@ Test ──────────────────────────────────────────────────────────────
