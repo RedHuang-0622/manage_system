@@ -31,30 +31,19 @@ build-frontend: install ## Build frontend production bundle
 
 ##@ Development ──────────────────────────────────────────────────────
 
-dev: install stop ## Start backend + frontend (make stop to quit)
-	@echo "=== Lab Management System (dev mode) ==="
-	@echo "  Backend  -> http://localhost:8080"
-	@echo "  Frontend -> http://localhost:5173"
-	@echo "  (Ctrl+C stops frontend; run 'make stop' to kill backend)"
-	@echo ""
-	@cd $(BACKEND_DIR) && $(GO) run ./cmd/main.go &
-	@sleep 3 2>/dev/null || ping -n 4 127.0.0.1 > nul 2>&1 || true
-	@cd $(FRONTEND_DIR) && $(NPM) run dev
+dev: install ## Start backend + frontend (Ctrl+C to stop all)
+	@powershell -ExecutionPolicy Bypass -File dev.ps1
 
-dev-backend: stop ## Start backend only
-	@echo "[dev-backend] Starting on http://localhost:8080..."
-	cd $(BACKEND_DIR) && $(GO) run ./cmd/main.go
+dev-backend: ## Start backend only
+	@powershell -ExecutionPolicy Bypass -File dev.ps1 backend
 
 dev-frontend: install ## Start frontend only
-	@echo "[dev-frontend] Starting on http://localhost:5173..."
-	cd $(FRONTEND_DIR) && $(NPM) run dev
+	@powershell -ExecutionPolicy Bypass -File dev.ps1 frontend
 
 ##@ Stop ─────────────────────────────────────────────────────────────
 
 stop: ## Kill all dev processes on ports 8080 and 5173
-	@echo "[stop] Killing processes on ports 8080, 5173..."
-	@powershell -Command '$$ports=@(8080,5173); foreach($$p in $$ports){Get-NetTCPConnection -LocalPort $$p -ErrorAction SilentlyContinue | ForEach-Object {Stop-Process -Id $$_.OwningProcess -Force -ErrorAction SilentlyContinue}}; Write-Host "  Done."'
-	@echo ""
+	@powershell -ExecutionPolicy Bypass -Command '8080,5173 | ForEach-Object { Get-NetTCPConnection -LocalPort $$_ -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $$_.OwningProcess -Force -ErrorAction SilentlyContinue } }; Write-Host "[stop] Ports 8080, 5173 cleared."'
 
 ##@ Test ──────────────────────────────────────────────────────────────
 
