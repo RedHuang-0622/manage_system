@@ -18,12 +18,12 @@ export default function UserList() {
   const [keyword, setKeyword] = useState('');
   const [status, setStatus] = useState<string>('-1');
 
-  const fetchData = async () => {
+  const fetchData = async (page: number, size: number) => {
     setLoading(true);
     try {
       const resp = await listUsers({
-        page: pag.page,
-        page_size: pag.pageSize,
+        page,
+        page_size: size,
         keyword: keyword || undefined,
         status: Number(status),
       });
@@ -36,9 +36,15 @@ export default function UserList() {
     }
   };
 
-  useEffect(() => { fetchData(); }, [pag.page, pag.pageSize]);
+  useEffect(() => { fetchData(pag.page, pag.pageSize); }, [pag.page, pag.pageSize]);
 
-  const handleSearch = () => { pag.reset(); fetchData(); };
+  const handleSearch = () => {
+    if (pag.page === 1) {
+      fetchData(1, pag.pageSize);
+    } else {
+      pag.reset();
+    }
+  };
 
   const handleDisable = async (id: number) => {
     try {

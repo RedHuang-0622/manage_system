@@ -39,3 +39,9 @@ frontend/.env.*.local
 # --- Environment ---
 .env
 .env.local
+
+# --- Seed scripts (use Go seeder: make seed) ---
+seed.ps1
+
+# --- Backend build output ---
+backend/bin/

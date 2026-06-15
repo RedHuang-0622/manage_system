@@ -30,14 +30,12 @@ export function useAuth() {
     [setToken, navigate],
   );
 
-  const doLogout = useCallback(async () => {
-    try {
-      await authApi.logout();
-    } catch {
-      // Ignore logout API errors
-    }
+  const doLogout = useCallback(() => {
+    // Clear local state immediately for instant UI response
     logout();
     navigate('/login', { replace: true });
+    // Call API in background (fire-and-forget)
+    authApi.logout().catch(() => {});
   }, [logout, navigate]);
 
   return {

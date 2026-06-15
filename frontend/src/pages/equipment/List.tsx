@@ -20,12 +20,12 @@ export default function EquipList() {
   const [category, setCategory] = useState(searchParams.get('category') || '');
   const [onlyAvailable, setOnlyAvailable] = useState(searchParams.get('only_available') || '0');
 
-  const fetchData = async () => {
+  const fetchData = async (page: number, size: number) => {
     setLoading(true);
     try {
       const resp = await listEquipments({
-        page: pag.page,
-        page_size: pag.pageSize,
+        page,
+        page_size: size,
         keyword: keyword || undefined,
         category: category || undefined,
         only_available: Number(onlyAvailable) as 0 | 1,
@@ -39,23 +39,14 @@ export default function EquipList() {
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, [pag.page, pag.pageSize]);
-
-  useEffect(() => {
-    const params: Record<string, string> = {};
-    if (keyword) params.keyword = keyword;
-    if (category) params.category = category;
-    if (onlyAvailable === '1') params.only_available = '1';
-    setSearchParams(params);
-    // Reset to page 1 and refetch
-    pag.reset();
-  }, []); // trigger on mount only; search triggers manual refetch
+  useEffect(() => { fetchData(pag.page, pag.pageSize); }, [pag.page, pag.pageSize]);
 
   const handleSearch = () => {
-    pag.reset();
-    fetchData();
+    if (pag.page === 1) {
+      fetchData(1, pag.pageSize);
+    } else {
+      pag.reset();
+    }
   };
 
   const columns = [

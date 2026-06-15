@@ -45,6 +45,11 @@ dev-frontend: ## Start frontend only
 stop: ## Kill all dev processes on ports 8080 and 5173
 	@powershell -ExecutionPolicy Bypass -Command '8080,5173 | ForEach-Object { Get-NetTCPConnection -LocalPort $$_ -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $$_.OwningProcess -Force -ErrorAction SilentlyContinue } }; Write-Host "[stop] Ports 8080, 5173 cleared."'
 
+##@ Data ──────────────────────────────────────────────────────────────
+
+seed: ## Seed demo data (users, equipment, borrow records)
+	cd $(BACKEND_DIR) && $(GO) run ./cmd/seed/main.go
+
 ##@ Test ──────────────────────────────────────────────────────────────
 
 test: test-backend ## Run all tests
