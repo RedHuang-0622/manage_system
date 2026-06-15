@@ -29,3 +29,13 @@ vendor/
 # --- Coverage ---
 coverage.out
 *.coverprofile
+
+# --- Frontend ---
+frontend/dist/
+frontend/node_modules/
+frontend/.env.local
+frontend/.env.*.local
+
+# --- Environment ---
+.env
+.env.local
