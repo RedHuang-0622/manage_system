@@ -31,14 +31,14 @@ build-frontend: install ## Build frontend production bundle
 
 ##@ Development ──────────────────────────────────────────────────────
 
-dev: install ## Start backend + frontend (Ctrl+C to stop all)
-	@powershell -ExecutionPolicy Bypass -File dev.ps1
+dev: ## Start backend + frontend (Ctrl+C to stop all)
+	@powershell -ExecutionPolicy Bypass -File $(CURDIR)/dev.ps1
 
 dev-backend: ## Start backend only
-	@powershell -ExecutionPolicy Bypass -File dev.ps1 backend
+	@powershell -ExecutionPolicy Bypass -File $(CURDIR)/dev.ps1 backend
 
-dev-frontend: install ## Start frontend only
-	@powershell -ExecutionPolicy Bypass -File dev.ps1 frontend
+dev-frontend: ## Start frontend only
+	@powershell -ExecutionPolicy Bypass -File $(CURDIR)/dev.ps1 frontend
 
 ##@ Stop ─────────────────────────────────────────────────────────────
 
