@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"manage_system/models"
 	"manage_system/pkg/config"
@@ -139,12 +140,14 @@ func main() {
 		}
 
 		// Create borrow record
+		now := time.Now()
 		record := models.BorrowRecord{
 			UserID:      user.ID,
 			EquipmentID: equip.ID,
 			Quantity:    b.Quantity,
 			Status:      "申请中",
 			ApplyNote:   b.ApplyNote,
+			ApplyAt:     now,
 		}
 
 		// Check for duplicate
@@ -160,9 +163,11 @@ func main() {
 		// If approved, process approval
 		if b.Approve {
 			approverID := uint(1)
+			approveAt := time.Now()
 			record.Status = "已借出"
 			record.ApproveNote = b.ApproveNote
 			record.ApproverID = &approverID
+			record.ApproveAt = &approveAt
 			db.Save(&record)
 			// Deduct stock
 			db.Model(&equip).Update("available_stock", gorm.Expr("available_stock - ?", b.Quantity))
@@ -170,7 +175,9 @@ func main() {
 
 		// If returned, process return
 		if b.Return {
+			returnAt := time.Now()
 			record.Status = "已归还"
+			record.ReturnAt = &returnAt
 			db.Save(&record)
 			// Restore stock
 			db.Model(&equip).Update("available_stock", gorm.Expr("available_stock + ?", b.Quantity))
