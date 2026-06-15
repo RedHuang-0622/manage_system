@@ -37,17 +37,23 @@ build-frontend: install ## Build frontend production bundle
 
 ##@ Development ──────────────────────────────────────────────────────
 
-dev: ## Start both backend and frontend in development mode
-	@echo "$(BLUE)[dev]$(RESET) Starting backend (port 8080) + frontend (port 5173)..."
+dev: install ## Start both backend and frontend in development mode
+	@echo "$(GREEN)=== Starting Lab Management System (dev mode) ===$(RESET)"
+	@echo "  Backend  → http://localhost:8080"
+	@echo "  Frontend → http://localhost:5173"
+	@echo ""
+	@echo "$(BLUE)[1/2]$(RESET) Starting backend..."
 	@cd $(BACKEND_DIR) && $(GO) run ./cmd/main.go &
+	@sleep 3
+	@echo "$(BLUE)[2/2]$(RESET) Starting frontend..."
 	@cd $(FRONTEND_DIR) && $(NPM) run dev
 
 dev-backend: ## Start backend only with hot-reload (go run)
-	@echo "$(BLUE)[dev-backend]$(RESET) Starting backend on port 8080..."
+	@echo "$(BLUE)[dev-backend]$(RESET) Starting backend on http://localhost:8080..."
 	cd $(BACKEND_DIR) && $(GO) run ./cmd/main.go
 
 dev-frontend: install ## Start frontend dev server only (Vite HMR)
-	@echo "$(BLUE)[dev-frontend]$(RESET) Starting frontend on port 5173..."
+	@echo "$(BLUE)[dev-frontend]$(RESET) Starting frontend on http://localhost:5173..."
 	cd $(FRONTEND_DIR) && $(NPM) run dev
 
 ##@ Test ──────────────────────────────────────────────────────────────
