@@ -99,18 +99,16 @@ function Start-Frontend {
         & npm --prefix $frontendDir install
     }
 
-    $npxExe = Find-Exe "npx.cmd"
-    Write-Host "  npx: $npxExe" -ForegroundColor DarkGray
+    Write-Host "  npx: npx.cmd" -ForegroundColor DarkGray
 
-    # Use .NET ProcessStartInfo for reliable background launch
+    # Use ShellExecute for .cmd files (must run through cmd.exe)
     $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = $npxExe
-    $psi.Arguments = "vite --host"
+    $psi.FileName = "cmd.exe"
+    $psi.Arguments = "/c `"cd /d $frontendDir && npx vite --host`""
     $psi.WorkingDirectory = $frontendDir
     $psi.UseShellExecute = $false
     $psi.RedirectStandardOutput = $true
     $psi.RedirectStandardError = $true
-    $psi.Environment["PATH"] = $env:PATH
 
     $proc = [System.Diagnostics.Process]::Start($psi)
 
