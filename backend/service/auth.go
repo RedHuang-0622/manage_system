@@ -235,8 +235,18 @@ func (s *IAMService) ListUsers(ctx context.Context, req *ListUserReq) (*PageResu
 	p, ps, offset := response.NormalizePagination(req.Page, req.PageSize, 10, 100)
 	req.Page, req.PageSize = p, ps
 
+	// Normalize status: -1 means "all", convert to nil so DAO skips filter
+	var statusVal int = -1
+	var statusFilter *int
+	if req.Status != nil {
+		statusVal = *req.Status
+	}
+	if statusVal >= 0 {
+		statusFilter = &statusVal
+	}
+
 	// Cache-aside: try Redis first
-	cacheKey := fmt.Sprintf("user:list:%d:%d:%s:%d:%d", p, ps, req.Keyword, req.Status, req.RoleID)
+	cacheKey := fmt.Sprintf("user:list:%d:%d:%s:%d:%d", p, ps, req.Keyword, statusVal, req.RoleID)
 	if cached, err := s.redisClient.Get(ctx, cacheKey).Result(); err == nil {
 		var result PageResult
 		if json.Unmarshal([]byte(cached), &result) == nil {
@@ -244,7 +254,7 @@ func (s *IAMService) ListUsers(ctx context.Context, req *ListUserReq) (*PageResu
 		}
 	}
 
-	users, total, err := s.userDAO.FindPage(offset, req.PageSize, req.Keyword, req.Status, req.RoleID)
+	users, total, err := s.userDAO.FindPage(offset, req.PageSize, req.Keyword, statusFilter, req.RoleID)
 	if err != nil {
 		return nil, fmt.Errorf("[%d] %w", errcode.ErrInternal, err)
 	}

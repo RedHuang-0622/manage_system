@@ -52,7 +52,7 @@ func (d *userDAO) FindPage(offset, limit int, keyword string, status *int, roleI
 		like := "%" + keyword + "%"
 		query = query.Where("username LIKE ? OR real_name LIKE ?", like, like)
 	}
-	if status != nil {
+	if status != nil && *status >= 0 {
 		query = query.Where("status = ?", *status)
 	}
 	if roleID > 0 {

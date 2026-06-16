@@ -48,7 +48,7 @@ func (d *equipmentDAO) FindPage(offset, limit int, keyword, category string, sta
 	if category != "" {
 		query = query.Where("category = ?", category)
 	}
-	if status != nil {
+	if status != nil && *status >= 0 {
 		query = query.Where("status = ?", *status)
 	}
 	if onlyAvailable {
