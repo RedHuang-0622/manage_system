@@ -70,6 +70,17 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'lab-auth-storage',
       partialize: (state) => ({ token: state.token }),
+      // On hydration (page load/reload), re-derive user from the persisted token.
+      // This is needed because partialize only saves token, so user is always null
+      // after rehydration without this merge.
+      merge: (persisted, current) => ({
+        ...current,
+        ...(persisted as Partial<AuthState>),
+        user:
+          (persisted as { token?: string })?.token
+            ? decodeToken((persisted as { token: string }).token)
+            : null,
+      }),
     },
   ),
 );
