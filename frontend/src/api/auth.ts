@@ -27,11 +27,18 @@ export async function listRoles(): Promise<ApiResponse<RoleInfo[]>> {
   return data;
 }
 
+/** Convert base64url to standard base64 (JWT uses base64url, atob needs base64) */
+function base64urlDecode(str: string): string {
+  // Replace URL-safe chars and add padding
+  const base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+  return atob(base64);
+}
+
 /** GET /auth/me (decoded from JWT) — utility for getting current user info */
 export function decodeToken(token: string): UserInfo | null {
   try {
     const payload = token.split('.')[1];
-    const decoded = JSON.parse(atob(payload));
+    const decoded = JSON.parse(base64urlDecode(payload));
     return {
       user_id: decoded.user_id,
       username: decoded.username,

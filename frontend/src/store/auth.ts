@@ -18,6 +18,17 @@ interface AuthState {
   isSuperAdmin: () => boolean;
 }
 
+/** Decode JWT payload (handles base64url → base64 conversion for atob) */
+function parseJWTPayload(token: string): Record<string, unknown> | null {
+  try {
+    const base64url = token.split('.')[1];
+    const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(base64));
+  } catch {
+    return null;
+  }
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
@@ -40,14 +51,10 @@ export const useAuthStore = create<AuthState>()(
       isLoggedIn: () => {
         const { token } = get();
         if (!token) return false;
-        // Check if token is expired (basic client-side check)
-        try {
-          const payload = JSON.parse(atob(token.split('.')[1]));
-          const now = Math.floor(Date.now() / 1000);
-          return payload.exp > now;
-        } catch {
-          return false;
-        }
+        const payload = parseJWTPayload(token);
+        if (!payload) return false;
+        const now = Math.floor(Date.now() / 1000);
+        return typeof payload.exp === 'number' && payload.exp > now;
       },
 
       isAdmin: () => {
