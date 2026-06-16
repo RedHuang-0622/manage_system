@@ -1,0 +1,14 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://localhost:5173",
+      "localStorage": [
+        {
+          "name": "lab-auth-storage",
+          "value": "{\"state\":{\"token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjo5LCJ1c2VybmFtZSI6ImxpdWxlaSIsInJvbGVfaWQiOjQsInJvbGVfbmFtZSI6ImVxdWlwbWVudF9tYW5hZ2VyIiwiaXNzIjoibGFiLXN5c3RlbSIsImV4cCI6MTc4MTYyOTA0MSwiaWF0IjoxNzgxNjIxODQxfQ.fDwjHZZETksu97eWEGZuYTFzZ3T1-ZMm-Lr3N1Eo-co\"},\"version\":0}"
+        }
+      ]
+    }
+  ]
+}
