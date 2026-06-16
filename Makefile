@@ -31,7 +31,7 @@ build-frontend: install ## Build frontend production bundle
 
 ##@ Development ──────────────────────────────────────────────────────
 
-dev: ## Start backend + frontend (Ctrl+C to stop all)
+dev: seed ## Start backend + frontend with demo data (Ctrl+C to stop all)
 	@powershell -ExecutionPolicy Bypass -File $(CURDIR)/dev.ps1
 
 dev-backend: ## Start backend only

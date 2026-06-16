@@ -199,57 +199,63 @@ func seedData(db *gorm.DB, enforcer *casbin.Enforcer, logger *zap.Logger) {
 		logger.Info("种子管理员已创建 (admin / admin123)")
 	}
 
-	// 种子 Casbin 策略（幂等）
-	if !hasPolicy(enforcer, "super_admin", "/api/v1/*", ".*") {
-		policies := [][]string{
-			// super_admin: 全局管理
-			{"super_admin", "/api/v1/*", ".*"},
-			// lab_admin: 实验室负责人（管人+管设备+管借阅）
-			{"lab_admin", "/api/v1/users*", ".*"},
-			{"lab_admin", "/api/v1/equipments*", ".*"},
-			{"lab_admin", "/api/v1/borrows*", ".*"},
-			{"lab_admin", "/api/v1/roles*", "GET"},
-			{"lab_admin", "/api/v1/auth/logout", "POST"},
-			{"lab_admin", "/api/v1/auth/refresh", "POST"},
-			// equipment_manager: 设备管理员（管设备+审批借阅，不管人）
-			{"equipment_manager", "/api/v1/equipments*", ".*"},
-			{"equipment_manager", "/api/v1/borrows*", ".*"},
-			{"equipment_manager", "/api/v1/roles", "GET"},
-			{"equipment_manager", "/api/v1/auth/logout", "POST"},
-			{"equipment_manager", "/api/v1/auth/refresh", "POST"},
-			{"equipment_manager", "/api/v1/users/\\d+/password", "PUT"},
-			// member: 普通成员（浏览设备+发起借阅+管理个人）
-			{"member", "/api/v1/equipments*", "GET"},
-			{"member", "/api/v1/borrows/apply", "POST"},
-			{"member", "/api/v1/borrows/my", "GET"},
-			{"member", "/api/v1/borrows/\\d+/return", "POST"},
-			{"member", "/api/v1/borrows/\\d+/cancel", "POST"},
-			{"member", "/api/v1/users/\\d+/password", "PUT"},
-			{"member", "/api/v1/roles", "GET"},
-			{"member", "/api/v1/auth/logout", "POST"},
-			{"member", "/api/v1/auth/refresh", "POST"},
-			// viewer: 观察员（只读：浏览设备+查看借阅+个人设置）
-			{"viewer", "/api/v1/equipments*", "GET"},
-			{"viewer", "/api/v1/borrows/my", "GET"},
-			{"viewer", "/api/v1/borrows/pending", "GET"},
-			{"viewer", "/api/v1/roles", "GET"},
-			{"viewer", "/api/v1/users/\\d+/password", "PUT"},
-			{"viewer", "/api/v1/auth/logout", "POST"},
-			{"viewer", "/api/v1/auth/refresh", "POST"},
-		}
-		for _, p := range policies {
+	// 种子 Casbin 策略（逐条幂等，不会因已有旧策略而跳过新角色）
+	policies := [][]string{
+		// super_admin: 全局管理
+		{"super_admin", "/api/v1/*", ".*"},
+		// lab_admin: 实验室负责人
+		{"lab_admin", "/api/v1/users*", ".*"},
+		{"lab_admin", "/api/v1/equipments*", ".*"},
+		{"lab_admin", "/api/v1/borrows*", ".*"},
+		{"lab_admin", "/api/v1/roles*", "GET"},
+		{"lab_admin", "/api/v1/auth/logout", "POST"},
+		{"lab_admin", "/api/v1/auth/refresh", "POST"},
+		// equipment_manager: 设备管理员
+		{"equipment_manager", "/api/v1/equipments*", ".*"},
+		{"equipment_manager", "/api/v1/borrows*", ".*"},
+		{"equipment_manager", "/api/v1/roles", "GET"},
+		{"equipment_manager", "/api/v1/auth/logout", "POST"},
+		{"equipment_manager", "/api/v1/auth/refresh", "POST"},
+		{"equipment_manager", "/api/v1/users/\\d+/password", "PUT"},
+		// member: 普通成员
+		{"member", "/api/v1/equipments*", "GET"},
+		{"member", "/api/v1/borrows/apply", "POST"},
+		{"member", "/api/v1/borrows/my", "GET"},
+		{"member", "/api/v1/borrows/\\d+/return", "POST"},
+		{"member", "/api/v1/borrows/\\d+/cancel", "POST"},
+		{"member", "/api/v1/users/\\d+/password", "PUT"},
+		{"member", "/api/v1/roles", "GET"},
+		{"member", "/api/v1/auth/logout", "POST"},
+		{"member", "/api/v1/auth/refresh", "POST"},
+		// viewer: 观察员（只读）
+		{"viewer", "/api/v1/equipments*", "GET"},
+		{"viewer", "/api/v1/borrows/my", "GET"},
+		{"viewer", "/api/v1/borrows/pending", "GET"},
+		{"viewer", "/api/v1/roles", "GET"},
+		{"viewer", "/api/v1/users/\\d+/password", "PUT"},
+		{"viewer", "/api/v1/auth/logout", "POST"},
+		{"viewer", "/api/v1/auth/refresh", "POST"},
+	}
+	for _, p := range policies {
+		if !enforcer.HasPolicy(p[0], p[1], p[2]) {
 			enforcer.AddPolicy(p[0], p[1], p[2])
 		}
+	}
 
-		// 角色自映射 + 继承链
-		for _, r := range []string{"viewer", "member", "equipment_manager", "lab_admin", "super_admin"} {
+	// 角色自映射 + 继承链
+	for _, r := range []string{"viewer", "member", "equipment_manager", "lab_admin", "super_admin"} {
+		if !enforcer.HasGroupingPolicy(r, r) {
 			enforcer.AddGroupingPolicy(r, r)
 		}
-		enforcer.AddGroupingPolicy("super_admin", "lab_admin")
-		enforcer.AddGroupingPolicy("lab_admin", "equipment_manager")
-		enforcer.SavePolicy()
-		logger.Info("Casbin策略已初始化")
 	}
+	if !enforcer.HasGroupingPolicy("super_admin", "lab_admin") {
+		enforcer.AddGroupingPolicy("super_admin", "lab_admin")
+	}
+	if !enforcer.HasGroupingPolicy("lab_admin", "equipment_manager") {
+		enforcer.AddGroupingPolicy("lab_admin", "equipment_manager")
+	}
+	enforcer.SavePolicy()
+	logger.Info("Casbin策略已同步")
 }
 
 func hasPolicy(enforcer *casbin.Enforcer, sub, obj, act string) bool {

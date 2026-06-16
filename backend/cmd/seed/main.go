@@ -25,6 +25,14 @@ func main() {
 		log.Fatalf("数据库连接失败: %v", err)
 	}
 
+	// AutoMigrate (确保表存在，首次也能跑)
+	db.AutoMigrate(
+		&models.SysUser{},
+		&models.SysRole{},
+		&models.LabEquipment{},
+		&models.BorrowRecord{},
+	)
+
 	// Seed roles
 	roles := []models.SysRole{
 		{RoleName: "super_admin", Description: "超级管理员（指导老师）", IsSystem: 1},
