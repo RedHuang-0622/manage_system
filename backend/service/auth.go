@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -234,6 +235,15 @@ func (s *IAMService) ListUsers(ctx context.Context, req *ListUserReq) (*PageResu
 	p, ps, offset := response.NormalizePagination(req.Page, req.PageSize, 10, 100)
 	req.Page, req.PageSize = p, ps
 
+	// Cache-aside: try Redis first
+	cacheKey := fmt.Sprintf("user:list:%d:%d:%s:%d:%d", p, ps, req.Keyword, req.Status, req.RoleID)
+	if cached, err := s.redisClient.Get(ctx, cacheKey).Result(); err == nil {
+		var result PageResult
+		if json.Unmarshal([]byte(cached), &result) == nil {
+			return &result, nil
+		}
+	}
+
 	users, total, err := s.userDAO.FindPage(offset, req.PageSize, req.Keyword, req.Status, req.RoleID)
 	if err != nil {
 		return nil, fmt.Errorf("[%d] %w", errcode.ErrInternal, err)
@@ -244,12 +254,19 @@ func (s *IAMService) ListUsers(ctx context.Context, req *ListUserReq) (*PageResu
 		dtos[i] = toUserDTO(&u)
 	}
 
-	return &PageResult{
+	result := &PageResult{
 		Total:    total,
 		Page:     req.Page,
 		PageSize: req.PageSize,
 		List:     dtos,
-	}, nil
+	}
+
+	// Write cache (TTL 60s)
+	if data, err := json.Marshal(result); err == nil {
+		s.redisClient.Set(ctx, cacheKey, data, 60*time.Second)
+	}
+
+	return result, nil
 }
 
 func (s *IAMService) GetUserByID(ctx context.Context, id uint, operatorID uint, operatorRole string) (*UserDTO, error) {
@@ -328,6 +345,14 @@ func (s *IAMService) DisableUser(ctx context.Context, id uint, operatorID uint) 
 	// TODO V1.1: 将该用户的活跃Token加入黑名单
 
 	return s.userDAO.UpdateFields(id, map[string]interface{}{"status": 0})
+}
+
+// invalidateUserCache 失效所有用户列表缓存（写操作后调用）
+func (s *IAMService) invalidateUserCache(ctx context.Context) {
+	iter := s.redisClient.Scan(ctx, 0, "user:list:*", 100).Iterator()
+	for iter.Next(ctx) {
+		s.redisClient.Del(ctx, iter.Val())
+	}
 }
 
 func (s *IAMService) ChangePassword(ctx context.Context, operatorID uint, targetID uint, req *ChangePasswordReq, isAdmin bool) error {

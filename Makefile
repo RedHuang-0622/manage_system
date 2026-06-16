@@ -17,7 +17,7 @@ LDFLAGS       := -X 'main.Version=$(VERSION)' -X 'main.BuildTime=$(BUILD_TIME)'
 
 ##@ Build ────────────────────────────────────────────────────────────
 
-build: build-backend build-frontend ## Build production artifacts
+build: seed build-backend build-frontend ## Build production + seed data
 
 build-backend: ## Compile Go backend binary
 	@echo "[build-backend] Compiling..."
@@ -28,6 +28,20 @@ build-frontend: install ## Build frontend production bundle
 	@echo "[build-frontend] Building..."
 	cd $(FRONTEND_DIR) && $(NPM) run build
 	@echo "  -> $(BUILD_DIR)/"
+
+##@ Data ──────────────────────────────────────────────────────────────
+
+seed: mysql-seed ## Seed demo data (SQL + Go)
+	@echo "[seed] Running Go seeder..."
+	cd $(BACKEND_DIR) && $(GO) run ./cmd/seed/main.go
+
+mysql-seed: ## Run seed.sql against MySQL
+	@echo "[mysql-seed] Executing seed.sql..."
+	@grep 'password:' $(BACKEND_DIR)/conf/config.yaml | head -1 | sed 's/.*password: *"//' | sed 's/"//' > /tmp/_dbpass
+	@grep 'user:' $(BACKEND_DIR)/conf/config.yaml | head -1 | sed 's/.*user: *//' > /tmp/_dbuser
+	@grep 'database:' $(BACKEND_DIR)/conf/config.yaml | head -1 | sed 's/.*database: *//' > /tmp/_dbname
+	@mysql -u $$(cat /tmp/_dbuser) -p$$(cat /tmp/_dbpass) $$(cat /tmp/_dbname) < seed.sql 2>/dev/null && echo "  SQL seed OK" || echo "  SQL seed skipped (MySQL not available)"
+	@rm -f /tmp/_dbpass /tmp/_dbuser /tmp/_dbname
 
 ##@ Development ──────────────────────────────────────────────────────
 
