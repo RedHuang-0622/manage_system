@@ -56,11 +56,13 @@ func main() {
 	users := []userSeed{
 		{"zhangwei", "张伟", "zhangwei@lab.edu.cn", "13800138001", "lab_admin"},
 		{"liulei", "刘磊", "liulei@lab.edu.cn", "13800138006", "equipment_manager"},
+		{"ling", "凌", "ling@lab.edu.cn", "13800138007", "member"},
+		{"red", "Red", "red@lab.edu.cn", "13800138008", "member"},
 		{"lina", "李娜", "lina@lab.edu.cn", "13800138002", "member"},
 		{"wangqiang", "王强", "wangqiang@lab.edu.cn", "13800138003", "member"},
 		{"zhaomin", "赵敏", "zhaomin@lab.edu.cn", "13800138004", "member"},
 		{"chenjing", "陈静", "chenjing@lab.edu.cn", "13800138005", "member"},
-		{"sunyue", "孙悦", "sunyue@lab.edu.cn", "13800138007", "viewer"},
+		{"sunyue", "孙悦", "sunyue@lab.edu.cn", "13800138009", "viewer"},
 	}
 
 	for _, u := range users {
