@@ -31,11 +31,15 @@ export function useAuth() {
   );
 
   const doLogout = useCallback(() => {
+    // Capture token before clearing state (needed for API call)
+    const currentToken = useAuthStore.getState().token;
     // Clear local state immediately for instant UI response
     logout();
     navigate('/login', { replace: true });
-    // Call API in background (fire-and-forget)
-    authApi.logout().catch(() => {});
+    // Send token to backend for blacklisting (fire-and-forget, explicit token)
+    if (currentToken) {
+      authApi.logout(currentToken).catch(() => {});
+    }
   }, [logout, navigate]);
 
   return {

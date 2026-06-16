@@ -7,9 +7,11 @@ export async function login(req: LoginReq): Promise<ApiResponse<LoginResp>> {
   return data;
 }
 
-/** POST /auth/logout */
-export async function logout(): Promise<ApiResponse<null>> {
-  const { data } = await client.post('/auth/logout');
+/** POST /auth/logout — pass token explicitly to avoid stale Zustand state */
+export async function logout(token?: string): Promise<ApiResponse<null>> {
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const { data } = await client.post('/auth/logout', null, { headers });
   return data;
 }
 
