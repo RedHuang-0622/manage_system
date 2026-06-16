@@ -43,7 +43,7 @@ dev-frontend: ## Start frontend only
 ##@ Stop ─────────────────────────────────────────────────────────────
 
 stop: ## Kill all dev processes on ports 8080 and 5173
-	@powershell -ExecutionPolicy Bypass -Command '8080,5173 | ForEach-Object { Get-NetTCPConnection -LocalPort $$_ -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $$_.OwningProcess -Force -ErrorAction SilentlyContinue } }; Write-Host "[stop] Ports 8080, 5173 cleared."'
+	@bash stop.sh
 
 ##@ Data ──────────────────────────────────────────────────────────────
 
