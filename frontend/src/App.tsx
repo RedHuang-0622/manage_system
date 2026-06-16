@@ -67,7 +67,7 @@ export default function App() {
             <Route
               path="equipments/new"
               element={
-                <RoleGuard roles={['super_admin', 'lab_admin']}>
+                <RoleGuard roles={['super_admin', 'lab_admin', 'equipment_manager']}>
                   <EquipCreate />
                 </RoleGuard>
               }
@@ -114,7 +114,7 @@ export default function App() {
             <Route
               path="borrows/pending"
               element={
-                <RoleGuard roles={['super_admin', 'lab_admin']}>
+                <RoleGuard roles={['super_admin', 'lab_admin', 'equipment_manager']}>
                   <PendingList />
                 </RoleGuard>
               }
@@ -122,7 +122,7 @@ export default function App() {
             <Route
               path="borrows/all"
               element={
-                <RoleGuard roles={['super_admin', 'lab_admin']}>
+                <RoleGuard roles={['super_admin', 'lab_admin', 'equipment_manager']}>
                   <AllRecords />
                 </RoleGuard>
               }

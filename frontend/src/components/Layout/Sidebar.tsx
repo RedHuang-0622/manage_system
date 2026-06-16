@@ -5,6 +5,7 @@ import {
   ExperimentOutlined,
   UserOutlined,
   FileTextOutlined,
+  EyeOutlined,
 } from '@ant-design/icons';
 import { usePermission } from '../../hooks/usePermission';
 
@@ -15,9 +16,8 @@ interface SidebarProps {
 export default function Sidebar({ collapsed }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAdmin } = usePermission();
+  const { isEquipManager, canManageUsers, roleName } = usePermission();
 
-  // Determine selected key from current path
   const path = location.pathname;
   const selectedKey = path.startsWith('/equipments')
     ? '/equipments'
@@ -26,6 +26,9 @@ export default function Sidebar({ collapsed }: SidebarProps) {
       : path.startsWith('/borrows')
         ? '/borrows'
         : '/';
+
+  // viewer: read-only, cannot apply borrow
+  const isViewer = roleName === 'viewer';
 
   const menuItems = [
     {
@@ -36,7 +39,7 @@ export default function Sidebar({ collapsed }: SidebarProps) {
     {
       key: '/equipments',
       icon: <ExperimentOutlined />,
-      label: '设备管理',
+      label: '设备大厅',
     },
     {
       key: 'borrows-group',
@@ -44,8 +47,11 @@ export default function Sidebar({ collapsed }: SidebarProps) {
       label: '借阅管理',
       children: [
         { key: '/borrows/my', label: '我的借阅' },
-        { key: '/borrows/apply', label: '发起申请' },
-        ...(isAdmin
+        ...(isViewer
+          ? []
+          : [{ key: '/borrows/apply', label: '发起申请' }]
+        ),
+        ...(isEquipManager
           ? [
               { key: '/borrows/pending', label: '待审批' },
               { key: '/borrows/all', label: '全部记录' },
@@ -53,7 +59,7 @@ export default function Sidebar({ collapsed }: SidebarProps) {
           : []),
       ],
     },
-    ...(isAdmin
+    ...(canManageUsers
       ? [
           {
             key: '/users',

@@ -11,7 +11,7 @@ import type { Equipment } from '../../api/types';
 
 export default function EquipList() {
   const navigate = useNavigate();
-  const { isAdmin } = usePermission();
+  const { isEquipManager } = usePermission();
   const pag = usePagination({ defaultPageSize: 12 });
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<Equipment[]>([]);
@@ -79,7 +79,7 @@ export default function EquipList() {
           <Button type="link" size="small" onClick={() => navigate(`/equipments/${r.id}`)}>
             详情
           </Button>
-          {isAdmin && (
+          {isEquipManager && (
             <Button type="link" size="small" onClick={() => navigate(`/equipments/${r.id}/edit`)}>
               编辑
             </Button>
@@ -124,7 +124,7 @@ export default function EquipList() {
           <Button type="primary" onClick={handleSearch} icon={<SearchOutlined />}>
             搜索
           </Button>
-          {isAdmin && (
+          {isEquipManager && (
             <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/equipments/new')}>
               设备入库
             </Button>

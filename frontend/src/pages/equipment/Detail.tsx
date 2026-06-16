@@ -10,7 +10,7 @@ import type { Equipment } from '../../api/types';
 export default function EquipDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { isAdmin } = usePermission();
+  const { isEquipManager } = usePermission();
   const [loading, setLoading] = useState(true);
   const [equip, setEquip] = useState<Equipment | null>(null);
 
@@ -35,7 +35,7 @@ export default function EquipDetail() {
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2>{equip.name}</h2>
         <Space>
-          {isAdmin && (
+          {isEquipManager && (
             <Button icon={<EditOutlined />} onClick={() => navigate(`/equipments/${id}/edit`)}>
               编辑
             </Button>

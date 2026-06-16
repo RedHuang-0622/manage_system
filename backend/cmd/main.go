@@ -170,7 +170,9 @@ func seedData(db *gorm.DB, enforcer *casbin.Enforcer, logger *zap.Logger) {
 	roles := []models.SysRole{
 		{RoleName: "super_admin", Description: "超级管理员（指导老师）", IsSystem: 1},
 		{RoleName: "lab_admin", Description: "实验室负责人", IsSystem: 1},
+		{RoleName: "equipment_manager", Description: "设备管理员", IsSystem: 1},
 		{RoleName: "member", Description: "普通成员", IsSystem: 1},
+		{RoleName: "viewer", Description: "观察员（只读）", IsSystem: 1},
 	}
 
 	for _, role := range roles {
@@ -198,16 +200,25 @@ func seedData(db *gorm.DB, enforcer *casbin.Enforcer, logger *zap.Logger) {
 	}
 
 	// 种子 Casbin 策略（幂等）
-	// 先清除现有策略再重新加载，或用 HasPolicy 检查
 	if !hasPolicy(enforcer, "super_admin", "/api/v1/*", ".*") {
 		policies := [][]string{
+			// super_admin: 全局管理
 			{"super_admin", "/api/v1/*", ".*"},
+			// lab_admin: 实验室负责人（管人+管设备+管借阅）
 			{"lab_admin", "/api/v1/users*", ".*"},
 			{"lab_admin", "/api/v1/equipments*", ".*"},
 			{"lab_admin", "/api/v1/borrows*", ".*"},
 			{"lab_admin", "/api/v1/roles*", "GET"},
 			{"lab_admin", "/api/v1/auth/logout", "POST"},
 			{"lab_admin", "/api/v1/auth/refresh", "POST"},
+			// equipment_manager: 设备管理员（管设备+审批借阅，不管人）
+			{"equipment_manager", "/api/v1/equipments*", ".*"},
+			{"equipment_manager", "/api/v1/borrows*", ".*"},
+			{"equipment_manager", "/api/v1/roles", "GET"},
+			{"equipment_manager", "/api/v1/auth/logout", "POST"},
+			{"equipment_manager", "/api/v1/auth/refresh", "POST"},
+			{"equipment_manager", "/api/v1/users/\\d+/password", "PUT"},
+			// member: 普通成员（浏览设备+发起借阅+管理个人）
 			{"member", "/api/v1/equipments*", "GET"},
 			{"member", "/api/v1/borrows/apply", "POST"},
 			{"member", "/api/v1/borrows/my", "GET"},
@@ -217,16 +228,25 @@ func seedData(db *gorm.DB, enforcer *casbin.Enforcer, logger *zap.Logger) {
 			{"member", "/api/v1/roles", "GET"},
 			{"member", "/api/v1/auth/logout", "POST"},
 			{"member", "/api/v1/auth/refresh", "POST"},
+			// viewer: 观察员（只读：浏览设备+查看借阅+个人设置）
+			{"viewer", "/api/v1/equipments*", "GET"},
+			{"viewer", "/api/v1/borrows/my", "GET"},
+			{"viewer", "/api/v1/borrows/pending", "GET"},
+			{"viewer", "/api/v1/roles", "GET"},
+			{"viewer", "/api/v1/users/\\d+/password", "PUT"},
+			{"viewer", "/api/v1/auth/logout", "POST"},
+			{"viewer", "/api/v1/auth/refresh", "POST"},
 		}
 		for _, p := range policies {
 			enforcer.AddPolicy(p[0], p[1], p[2])
 		}
 
-		// 角色自映射（使 RBAC matchers 中 g(r.sub, p.sub) 正常工作）
-		enforcer.AddGroupingPolicy("member", "member")
-		enforcer.AddGroupingPolicy("lab_admin", "lab_admin")
-		enforcer.AddGroupingPolicy("super_admin", "super_admin")
-		enforcer.AddGroupingPolicy("super_admin", "lab_admin") // 角色继承
+		// 角色自映射 + 继承链
+		for _, r := range []string{"viewer", "member", "equipment_manager", "lab_admin", "super_admin"} {
+			enforcer.AddGroupingPolicy(r, r)
+		}
+		enforcer.AddGroupingPolicy("super_admin", "lab_admin")
+		enforcer.AddGroupingPolicy("lab_admin", "equipment_manager")
 		enforcer.SavePolicy()
 		logger.Info("Casbin策略已初始化")
 	}

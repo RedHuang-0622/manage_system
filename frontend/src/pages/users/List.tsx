@@ -68,7 +68,7 @@ export default function UserList() {
       title: '角色',
       dataIndex: ['role', 'role_name'],
       render: (v: string) => {
-        const labels: Record<string, string> = { super_admin: '超级管理员', lab_admin: '实验室负责人', member: '普通成员' };
+        const labels: Record<string, string> = { super_admin: '超级管理员', lab_admin: '实验室负责人', equipment_manager: '设备管理员', member: '普通成员', viewer: '观察员' };
         return labels[v] || v;
       },
     },
