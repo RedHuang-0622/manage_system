@@ -121,8 +121,13 @@ func main() {
 		}
 	}
 
-	// Seed borrow records (simulate a realistic workflow)
+	// Seed borrow records
 	fmt.Println()
+
+	// 防呆：先重置所有设备库存 = total_stock，避免重复跑种子导致 underflow
+	db.Exec("UPDATE lab_equipments SET available_stock = total_stock")
+	fmt.Println("库存已重置")
+
 	type borrowSeed struct {
 		Username     string
 		EquipmentName string
@@ -182,7 +187,7 @@ func main() {
 			record.ApproveAt = &approveAt
 			db.Save(&record)
 			// Deduct stock
-			db.Model(&equip).Update("available_stock", gorm.Expr("available_stock - ?", b.Quantity))
+			db.Model(&equip).Where("available_stock >= ?", b.Quantity).Update("available_stock", gorm.Expr("available_stock - ?", b.Quantity))
 		}
 
 		// If returned, process return

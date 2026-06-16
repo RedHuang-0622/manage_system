@@ -4,7 +4,7 @@ import { ErrCode } from './types';
 
 const client = axios.create({
   baseURL: '/api/v1',
-  timeout: 15000,
+  timeout: 8000,  // 8s (matches Vite proxy timeout)
   headers: { 'Content-Type': 'application/json' },
 });
 

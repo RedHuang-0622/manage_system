@@ -15,6 +15,8 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+        timeout: 10000,       // 10s proxy timeout (prevents Vite hang)
+        proxyTimeout: 12000,  // 12s upstream timeout
       },
     },
   },
