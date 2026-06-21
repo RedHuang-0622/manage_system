@@ -228,6 +228,8 @@ func (s *IAMService) CreateUser(ctx context.Context, req *CreateUserReq) (*model
 		return nil, fmt.Errorf("[%d] %w", errcode.ErrInternal, err)
 	}
 
+	s.invalidateUserCache(ctx)
+
 	return user, nil
 }
 
@@ -335,7 +337,12 @@ func (s *IAMService) UpdateUser(ctx context.Context, id uint, req *UpdateUserReq
 		return nil
 	}
 
-	return s.userDAO.UpdateFields(id, updates)
+	if err := s.userDAO.UpdateFields(id, updates); err != nil {
+		return err
+	}
+
+	s.invalidateUserCache(ctx)
+	return nil
 }
 
 func (s *IAMService) DisableUser(ctx context.Context, id uint, operatorID uint) error {
@@ -354,7 +361,12 @@ func (s *IAMService) DisableUser(ctx context.Context, id uint, operatorID uint) 
 	// TODO V1.1: 检查是否有未归还借阅
 	// TODO V1.1: 将该用户的活跃Token加入黑名单
 
-	return s.userDAO.UpdateFields(id, map[string]interface{}{"status": 0})
+	if err := s.userDAO.UpdateFields(id, map[string]interface{}{"status": 0}); err != nil {
+		return err
+	}
+
+	s.invalidateUserCache(ctx)
+	return nil
 }
 
 // invalidateUserCache 失效所有用户列表缓存（写操作后调用）
