@@ -1,6 +1,11 @@
 server:
   port: 8080
   mode: debug
+  read_timeout: 10
+  read_header_timeout: 5
+  write_timeout: 10
+  idle_timeout: 30
+  max_header_bytes: 1048576
 
 mysql:
   host: 127.0.0.1

@@ -23,8 +23,13 @@ type CORSConfig struct {
 }
 
 type ServerConfig struct {
-	Port int    `mapstructure:"port"`
-	Mode string `mapstructure:"mode"`
+	Port              int    `mapstructure:"port"`
+	Mode              string `mapstructure:"mode"`
+	ReadTimeout       int    `mapstructure:"read_timeout"`        // 读取完整请求超时(秒)
+	ReadHeaderTimeout int    `mapstructure:"read_header_timeout"` // 仅读请求头超时(秒)，防 Slowloris
+	WriteTimeout      int    `mapstructure:"write_timeout"`       // 写入响应超时(秒)
+	IdleTimeout       int    `mapstructure:"idle_timeout"`        // Keep-Alive 空闲超时(秒)
+	MaxHeaderBytes    int    `mapstructure:"max_header_bytes"`    // 请求头最大字节数
 }
 
 type MySQLConfig struct {
@@ -104,6 +109,21 @@ func setDefaults(cfg *Config) {
 	}
 	if cfg.Server.Mode == "" {
 		cfg.Server.Mode = "debug"
+	}
+	if cfg.Server.ReadTimeout == 0 {
+		cfg.Server.ReadTimeout = 10 // 10s 覆盖所有 API
+	}
+	if cfg.Server.ReadHeaderTimeout == 0 {
+		cfg.Server.ReadHeaderTimeout = 5 // 5s 切断慢速 Header 攻击
+	}
+	if cfg.Server.WriteTimeout == 0 {
+		cfg.Server.WriteTimeout = 10
+	}
+	if cfg.Server.IdleTimeout == 0 {
+		cfg.Server.IdleTimeout = 30 // 30s 回收僵死连接
+	}
+	if cfg.Server.MaxHeaderBytes == 0 {
+		cfg.Server.MaxHeaderBytes = 1 << 20 // 1MB
 	}
 	if cfg.MySQL.Charset == "" {
 		cfg.MySQL.Charset = "utf8mb4"
