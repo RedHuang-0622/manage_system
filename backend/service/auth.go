@@ -249,10 +249,12 @@ func (s *IAMService) ListUsers(ctx context.Context, req *ListUserReq) (*PageResu
 
 	// Cache-aside: try Redis first
 	cacheKey := fmt.Sprintf("user:list:%d:%d:%s:%d:%d", p, ps, req.Keyword, statusVal, req.RoleID)
-	if cached, err := s.redisClient.Get(ctx, cacheKey).Result(); err == nil {
-		var result PageResult
-		if json.Unmarshal([]byte(cached), &result) == nil {
-			return &result, nil
+	if s.redisClient != nil {
+		if cached, err := s.redisClient.Get(ctx, cacheKey).Result(); err == nil {
+			var result PageResult
+			if json.Unmarshal([]byte(cached), &result) == nil {
+				return &result, nil
+			}
 		}
 	}
 
@@ -274,10 +276,11 @@ func (s *IAMService) ListUsers(ctx context.Context, req *ListUserReq) (*PageResu
 	}
 
 	// Write cache (TTL 60s)
-	if data, err := json.Marshal(result); err == nil {
-		s.redisClient.Set(ctx, cacheKey, data, 60*time.Second)
+	if s.redisClient != nil {
+		if data, err := json.Marshal(result); err == nil {
+			s.redisClient.Set(ctx, cacheKey, data, 60*time.Second)
+		}
 	}
-
 	return result, nil
 }
 

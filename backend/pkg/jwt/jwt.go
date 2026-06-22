@@ -83,6 +83,9 @@ func (s *Service) ParseToken(tokenString string) (*Claims, error) {
 }
 
 func (s *Service) AddToBlacklist(tokenString string, expireAt time.Time) error {
+	if s.redisClient == nil {
+		return nil
+	}
 	hash := sha256hex(tokenString)
 	ttl := time.Until(expireAt)
 	if ttl <= 0 {
@@ -94,6 +97,9 @@ func (s *Service) AddToBlacklist(tokenString string, expireAt time.Time) error {
 }
 
 func (s *Service) IsInBlacklist(tokenString string) bool {
+	if s.redisClient == nil {
+		return false
+	}
 	hash := sha256hex(tokenString)
 	key := "jwt:blacklist:" + hash
 	val, err := s.redisClient.Get(context.Background(), key).Result()
