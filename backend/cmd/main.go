@@ -263,5 +263,37 @@ func seedData(db *gorm.DB, enforcer *casbin.Enforcer, logger *zap.Logger) {
 		enforcer.AddGroupingPolicy("lab_admin", "equipment_manager")
 	}
 	enforcer.SavePolicy()
+	// 种子测试用户（E2E/集成测试使用 —— 幂等创建）
+	type seedUser struct {
+		username string
+		password string
+		realName string
+		roleName string
+	}
+	testUsers := []seedUser{
+		{"lina", "123456", "李娜", "member"},
+		{"liulei", "123456", "刘磊", "equipment_manager"},
+		{"sunyue", "123456", "孙悦", "viewer"},
+	}
+	for _, tu := range testUsers {
+		var existing models.SysUser
+		if err := db.Where("username = ?", tu.username).First(&existing).Error; err != nil {
+			var role models.SysRole
+			if db.Where("role_name = ?", tu.roleName).First(&role).Error == nil {
+				hash, _ := bcrypt.GenerateFromPassword([]byte(tu.password), 12)
+				db.Create(&models.SysUser{
+					Username:     tu.username,
+					PasswordHash: string(hash),
+					RealName:     tu.realName,
+					RoleID:       role.ID,
+					Status:       1,
+				})
+				logger.Info("种子测试用户已创建",
+					zap.String("username", tu.username),
+					zap.String("role", tu.roleName))
+			}
+		}
+	}
+
 	logger.Info("Casbin策略已同步")
 }

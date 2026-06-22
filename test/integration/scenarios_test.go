@@ -26,6 +26,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -149,7 +150,7 @@ m = g(r.sub, p.sub) && keyMatch(r.obj, p.obj) && regexMatch(r.act, p.act)
 		BorrowController:    controller.NewBorrowController(borrowService),
 		JWTService:          jwtService,
 		Enforcer:            casbinEnforcer,
-		Logger:              nil,
+		Logger:              zap.NewNop(),
 	})
 
 	// Login as admin
