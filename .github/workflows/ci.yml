@@ -183,10 +183,10 @@ jobs:
           server:
             port: 8080
             mode: test
-            read_timeout: 10
-            read_header_timeout: 5
-            write_timeout: 10
-            idle_timeout: 30
+            read_timeout: 30
+            read_header_timeout: 30
+            write_timeout: 30
+            idle_timeout: 60
             max_header_bytes: 1048576
           mysql:
             host: 127.0.0.1
@@ -213,6 +213,7 @@ jobs:
           cors:
             allowed_origins:
               - "http://localhost:5173"
+              - "http://127.0.0.1:5173"
           log:
             path: "logs/app-test.log"
             level: "info"
@@ -301,7 +302,7 @@ jobs:
             port: 8080
             mode: debug
             read_timeout: 30
-            read_header_timeout: 10
+            read_header_timeout: 30
             write_timeout: 30
             idle_timeout: 60
             max_header_bytes: 1048576
@@ -330,6 +331,7 @@ jobs:
           cors:
             allowed_origins:
               - "http://localhost:5173"
+              - "http://127.0.0.1:5173"
           log:
             path: "logs/app-e2e.log"
             level: "info"
@@ -432,8 +434,9 @@ jobs:
           ## Notes
 
           - `backend-test` runs with `-race -count=1 -covermode=atomic`
-          - `backend-integration` uses `-tags=integration` with real MySQL + Redis
-          - `e2e` runs Playwright against a live backend + Vite dev server
+          - `backend-integration` uses `-tags=integration` with SQLite in-memory (CI MySQL+Redis are standby)
+          - `e2e` runs Playwright against a live backend. Frontend calls `localhost:8080` directly via CORS (no Vite proxy).
+          - JWT includes `jti` (unique ID) to prevent identical-token collision on refresh.
           - Coverage thresholds: 80% (warning only in this report)
           - `govulncheck` is **advisory** (non-blocking) — review findings periodically
 

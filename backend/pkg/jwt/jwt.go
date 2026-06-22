@@ -2,9 +2,11 @@ package jwt
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"sync"
 	"time"
 
@@ -42,12 +44,22 @@ func (s *Service) GenerateToken(userID uint, username string, roleID uint, roleN
 	now := time.Now()
 	expiresAt := now.Add(s.expire)
 
+	// Unique JWT ID prevents identical tokens when refreshed in the same second.
+	// HMAC-SHA256 is deterministic — without jti, two GenerateToken calls with
+	// the same claims + same timestamp produce the same token string, which
+	// would already be blacklisted (refresh → logout loop).
+	jti, err := genJTI()
+	if err != nil {
+		return "", 0, fmt.Errorf("生成JTI失败: %w", err)
+	}
+
 	claims := &Claims{
 		UserID:   userID,
 		Username: username,
 		RoleID:   roleID,
 		RoleName: roleName,
 		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        jti,
 			Issuer:    s.issuer,
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
@@ -61,6 +73,19 @@ func (s *Service) GenerateToken(userID uint, username string, roleID uint, roleN
 	}
 
 	return tokenStr, expiresAt.Unix(), nil
+}
+
+// genJTI generates a unique JWT ID: unix nano timestamp + 4 random bytes (hex).
+func genJTI() (string, error) {
+	b := make([]byte, 4)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	n, err := rand.Int(rand.Reader, big.NewInt(1<<32))
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%d-%x-%x", time.Now().UnixNano(), b, n), nil
 }
 
 func (s *Service) ParseToken(tokenString string) (*Claims, error) {

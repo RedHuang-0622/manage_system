@@ -9,10 +9,11 @@ import (
 	"manage_system/pkg/jwt"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 // Auth JWT 认证中间件
-func Auth(jwtService *jwt.Service) gin.HandlerFunc {
+func Auth(jwtService *jwt.Service, logger *zap.Logger) gin.HandlerFunc {
 	// 白名单路径
 	skipPaths := map[string]bool{
 		"POST /api/v1/auth/login": true,
@@ -29,6 +30,10 @@ func Auth(jwtService *jwt.Service) gin.HandlerFunc {
 
 		tokenStr := extractToken(c)
 		if tokenStr == "" {
+			logger.Warn("auth_missing_token",
+				zap.String("path", c.Request.URL.Path),
+				zap.String("method", c.Request.Method),
+			)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, response.Response{
 				Code: errcode.ErrTokenMissing,
 				Msg:  errcode.GetMsg(errcode.ErrTokenMissing),
@@ -39,6 +44,10 @@ func Auth(jwtService *jwt.Service) gin.HandlerFunc {
 
 		// 检查黑名单
 		if jwtService.IsInBlacklist(tokenStr) {
+			logger.Warn("auth_blacklisted",
+				zap.String("path", c.Request.URL.Path),
+				zap.String("token_prefix", tokenStr[:min(10, len(tokenStr))]),
+			)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, response.Response{
 				Code: errcode.ErrTokenInvalid,
 				Msg:  "Token已失效",
@@ -50,6 +59,11 @@ func Auth(jwtService *jwt.Service) gin.HandlerFunc {
 		// 解析并验证 Token
 		claims, err := jwtService.ParseToken(tokenStr)
 		if err != nil {
+			logger.Warn("auth_parse_failed",
+				zap.String("path", c.Request.URL.Path),
+				zap.String("token_prefix", tokenStr[:min(10, len(tokenStr))]),
+				zap.Error(err),
+			)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, response.Response{
 				Code: errcode.ErrTokenInvalid,
 				Msg:  errcode.GetMsg(errcode.ErrTokenInvalid),

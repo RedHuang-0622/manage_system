@@ -1,7 +1,5 @@
-# Lab Management System — Development Launcher
-# Usage: .\dev.ps1          (both backend + frontend)
-#        .\dev.ps1 backend   (backend only)
-#        .\dev.ps1 frontend  (frontend only)
+# Lab Management System — Reliable Dev Launcher
+# Usage: .\dev.ps1
 
 param([string]$target = "both")
 
@@ -11,44 +9,31 @@ $frontendDir = "$PSScriptRoot\frontend"
 $backendPort = 8080
 $frontendPort = 5173
 
-# ── Helper: Kill processes on a port ─────────────────────────────
-function Stop-Port($port) {
-    $conns = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue
-    if ($conns) {
-        Write-Host "[stop] Killing processes on port $port..." -ForegroundColor Yellow
-        $conns | ForEach-Object {
-            Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue
-        }
-    }
-}
+# ── Kill anything on dev ports ───────────────────────────────────
+Write-Host "[kill] Clearing ports $backendPort / $frontendPort..." -ForegroundColor Yellow
+
+# Method 1: taskkill by port (most reliable on Windows)
+cmd /c "for /f `"tokens=5`" %a in ('netstat -ano ^| findstr `":$backendPort `" ^| findstr LISTENING') do taskkill /F /PID %a" 2>$null
+cmd /c "for /f `"tokens=5`" %a in ('netstat -ano ^| findstr `":$frontendPort `" ^| findstr LISTENING') do taskkill /F /PID %a" 2>$null
+Start-Sleep -Seconds 2
+
+# Verify ports are free
+$b = netstat -ano | Select-String ":$backendPort " | Select-String "LISTENING"
+$f = netstat -ano | Select-String ":$frontendPort " | Select-String "LISTENING"
+if ($b) { Write-Host "  WARNING: Port $backendPort still occupied!" -ForegroundColor Red }
+if ($f) { Write-Host "  WARNING: Port $frontendPort still occupied!" -ForegroundColor Red }
+if (-not $b -and -not $f) { Write-Host "  Ports cleared." -ForegroundColor Green }
 
 # ── Helper: Wait for a port to be listening ──────────────────────
-function Wait-Port($port, $timeoutSec = 15) {
+function Wait-Port($port, $timeoutSec = 20) {
     $elapsed = 0
     while ($elapsed -lt $timeoutSec) {
-        $listening = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
+        $listening = netstat -ano | Select-String ":$port " | Select-String "LISTENING"
         if ($listening) { return $true }
         Start-Sleep -Seconds 1
         $elapsed++
     }
     return $false
-}
-
-# ── Resolve executable path ─────────────────────────────────────
-function Find-Exe($name) {
-    $cmd = Get-Command $name -ErrorAction SilentlyContinue
-    if ($cmd) { return $cmd.Source }
-    # Fallback: common install paths
-    $paths = @(
-        "$env:LOCALAPPDATA\Programs\Go\bin\$name.exe",
-        "C:\Program Files\Go\bin\$name.exe",
-        "C:\go\bin\$name.exe",
-        "$env:APPDATA\npm\$name.cmd"
-    )
-    foreach ($p in $paths) {
-        if (Test-Path $p) { return $p }
-    }
-    throw "Cannot find $name in PATH or common locations"
 }
 
 # ── Start Backend ────────────────────────────────────────────────
@@ -57,14 +42,8 @@ function Start-Backend {
     Write-Host "=== [1/2] Starting backend ===" -ForegroundColor Cyan
     Write-Host "  URL: http://localhost:$backendPort" -ForegroundColor Gray
 
-    Stop-Port $backendPort
-
-    $goExe = Find-Exe "go"
-    Write-Host "  go: $goExe" -ForegroundColor DarkGray
-
-    # Use .NET ProcessStartInfo for reliable background launch
     $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = $goExe
+    $psi.FileName = (Get-Command go -ErrorAction Stop).Source
     $psi.Arguments = "run ./cmd/main.go"
     $psi.WorkingDirectory = $backendDir
     $psi.UseShellExecute = $false
@@ -74,10 +53,12 @@ function Start-Backend {
 
     $proc = [System.Diagnostics.Process]::Start($psi)
 
-    Write-Host "  Waiting for backend to be ready..." -ForegroundColor Gray
-    $ready = Wait-Port $backendPort 15
+    Write-Host "  Waiting for backend..." -ForegroundColor Gray
+    $ready = Wait-Port $backendPort 20
     if (-not $ready) {
-        Write-Host "  ERROR: Backend failed to start within 15s" -ForegroundColor Red
+        $stderr = $proc.StandardError.ReadToEnd()
+        Write-Host "  ERROR: Backend failed to start within 20s" -ForegroundColor Red
+        if ($stderr) { Write-Host "  $stderr" -ForegroundColor DarkRed }
         $proc.Kill()
         exit 1
     }
@@ -91,17 +72,18 @@ function Start-Frontend {
     Write-Host "=== [2/2] Starting frontend ===" -ForegroundColor Cyan
     Write-Host "  URL: http://localhost:$frontendPort" -ForegroundColor Gray
 
-    Stop-Port $frontendPort
-
-    # Check node_modules
     if (-not (Test-Path "$frontendDir\node_modules")) {
         Write-Host "  Installing dependencies..." -ForegroundColor Yellow
         & npm --prefix $frontendDir install
     }
 
-    Write-Host "  npx: npx.cmd" -ForegroundColor DarkGray
+    # Clear Vite module cache to ensure fresh build
+    $viteCache = "$frontendDir\node_modules\.vite"
+    if (Test-Path $viteCache) {
+        Remove-Item -Recurse -Force $viteCache
+        Write-Host "  Vite cache cleared" -ForegroundColor DarkGray
+    }
 
-    # Use ShellExecute for .cmd files (must run through cmd.exe)
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = "cmd.exe"
     $psi.Arguments = "/c `"cd /d $frontendDir && npx vite --host`""
@@ -112,10 +94,10 @@ function Start-Frontend {
 
     $proc = [System.Diagnostics.Process]::Start($psi)
 
-    Write-Host "  Waiting for frontend to be ready..." -ForegroundColor Gray
-    $ready = Wait-Port $frontendPort 10
+    Write-Host "  Waiting for frontend..." -ForegroundColor Gray
+    $ready = Wait-Port $frontendPort 15
     if (-not $ready) {
-        Write-Host "  ERROR: Frontend failed to start within 10s" -ForegroundColor Red
+        Write-Host "  ERROR: Frontend failed to start within 15s" -ForegroundColor Red
         $proc.Kill()
         exit 1
     }
@@ -128,9 +110,6 @@ $backendProc = $null
 $frontendProc = $null
 
 try {
-    Stop-Port $backendPort
-    Stop-Port $frontendPort
-
     if ($target -eq "backend" -or $target -eq "both") {
         $backendProc = Start-Backend
     }
@@ -145,26 +124,18 @@ try {
     Write-Host "  Frontend : http://localhost:$frontendPort" -ForegroundColor White
     Write-Host "  Login    : admin / admin123" -ForegroundColor Gray
     Write-Host ""
-    Write-Host "  Press Ctrl+C to stop all services" -ForegroundColor Yellow
+    Write-Host "  IMPORTANT: In browser, press Ctrl+Shift+R (hard refresh)" -ForegroundColor Yellow
+    Write-Host "             If login still fails: F12 → Application → Clear site data" -ForegroundColor Yellow
     Write-Host ""
 
-    # Wait forever until Ctrl+C
-    while ($true) {
-        Start-Sleep -Seconds 1
-    }
+    while ($true) { Start-Sleep -Seconds 1 }
 }
 finally {
     Write-Host ""
     Write-Host "=== Stopping services ===" -ForegroundColor Yellow
-    if ($backendProc) {
-        $backendProc.Kill()
-        Write-Host "  Backend stopped" -ForegroundColor Gray
-    }
-    if ($frontendProc) {
-        $frontendProc.Kill()
-        Write-Host "  Frontend stopped" -ForegroundColor Gray
-    }
-    Stop-Port $backendPort
-    Stop-Port $frontendPort
+    if ($backendProc) { $backendProc.Kill() }
+    if ($frontendProc) { $frontendProc.Kill() }
+    cmd /c "for /f `"tokens=5`" %a in ('netstat -ano ^| findstr `":$backendPort `" ^| findstr LISTENING') do taskkill /F /PID %a" 2>$null
+    cmd /c "for /f `"tokens=5`" %a in ('netstat -ano ^| findstr `":$frontendPort `" ^| findstr LISTENING') do taskkill /F /PID %a" 2>$null
     Write-Host "  All services stopped." -ForegroundColor Green
 }

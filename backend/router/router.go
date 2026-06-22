@@ -30,6 +30,15 @@ type Dependencies struct {
 func SetupRouter(deps Dependencies) *gin.Engine {
 	r := gin.New()
 
+	// Force close: prevents Chrome's 6-connection-per-origin limit from
+	// starving concurrent requests (React StrictMode double-fires every effect).
+	// Without this, keep-alive connections accumulate until the pool is full,
+	// then all new requests queue up and hit axios's 8s timeout.
+	r.Use(func(c *gin.Context) {
+		c.Header("Connection", "close")
+		c.Next()
+	})
+
 	// 全局中间件链
 	r.Use(middleware.Recovery(deps.Logger))
 	r.Use(middleware.RequestID())
@@ -76,7 +85,7 @@ func SetupRouter(deps Dependencies) *gin.Engine {
 
 	// 受保护路由组（中间件链: Recovery → Logger → Auth → Casbin）
 	protected := r.Group("/api/v1")
-	protected.Use(middleware.Auth(deps.JWTService))
+	protected.Use(middleware.Auth(deps.JWTService, deps.Logger))
 	protected.Use(middleware.Casbin(deps.Enforcer, deps.Logger))
 	{
 		// 认证

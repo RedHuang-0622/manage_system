@@ -1,25 +1,36 @@
-import { Table, Select, Space, Card } from 'antd';
+import { Table, Select, Space, Card, Empty, Alert } from 'antd';
 import { useEffect, useState } from 'react';
 import { listMyRecords, cancelBorrow } from '../../api/borrows';
 import { usePagination } from '../../hooks/usePagination';
 import StatusBadge from '../../components/StatusBadge';
 import type { BorrowRecord } from '../../api/types';
 import { Button, message, Popconfirm } from 'antd';
+import { AxiosError } from 'axios';
+import { ErrCode } from '../../api/types';
 
 export default function MyRecords() {
   const pag = usePagination();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<BorrowRecord[]>([]);
   const [status, setStatus] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
+    setError(null);
     try {
       const resp = await listMyRecords({ page: pag.page, page_size: pag.pageSize, status: status || undefined });
       if (resp.code === 0 && resp.data) {
         setData(resp.data.list);
         pag.setTotal(resp.data.total);
       }
+    } catch (err: unknown) {
+      const axiosErr = err as AxiosError<{ code: number; msg: string }>;
+      if (axiosErr.response?.status === 401 && axiosErr.response?.data?.code === ErrCode.ErrTokenInvalid) {
+        // 拦截器已处理 refresh，这里不应到达；若到达说明 refresh 也失败了
+        return; // 拦截器会 redirect to /login
+      }
+      setError(axiosErr.message || '加载失败，请检查网络连接');
     } finally {
       setLoading(false);
     }
@@ -88,7 +99,18 @@ export default function MyRecords() {
           />
         </Space>
       </Card>
-      <Table rowKey="id" columns={columns} dataSource={data} loading={loading} pagination={pag.paginationProps} scroll={{ x: 900 }} />
+      {error ? (
+        <Alert type="error" message="加载失败" description={error} showIcon style={{ marginBottom: 16 }} />
+      ) : null}
+      <Table
+        rowKey="id"
+        columns={columns}
+        dataSource={data}
+        loading={loading}
+        pagination={pag.paginationProps}
+        scroll={{ x: 900 }}
+        locale={{ emptyText: <Empty description="暂无借阅记录" /> }}
+      />
     </>
   );
 }

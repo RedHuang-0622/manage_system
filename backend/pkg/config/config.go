@@ -111,16 +111,16 @@ func setDefaults(cfg *Config) {
 		cfg.Server.Mode = "debug"
 	}
 	if cfg.Server.ReadTimeout == 0 {
-		cfg.Server.ReadTimeout = 10 // 10s 覆盖所有 API
+		cfg.Server.ReadTimeout = 30
 	}
 	if cfg.Server.ReadHeaderTimeout == 0 {
-		cfg.Server.ReadHeaderTimeout = 5 // 5s 切断慢速 Header 攻击
+		cfg.Server.ReadHeaderTimeout = 30
 	}
 	if cfg.Server.WriteTimeout == 0 {
-		cfg.Server.WriteTimeout = 10
+		cfg.Server.WriteTimeout = 30
 	}
 	if cfg.Server.IdleTimeout == 0 {
-		cfg.Server.IdleTimeout = 30 // 30s 回收僵死连接
+		cfg.Server.IdleTimeout = 60
 	}
 	if cfg.Server.MaxHeaderBytes == 0 {
 		cfg.Server.MaxHeaderBytes = 1 << 20 // 1MB

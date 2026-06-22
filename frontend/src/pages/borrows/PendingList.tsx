@@ -1,24 +1,34 @@
-import { Table, Button, Input, Space, message, Popconfirm } from 'antd';
+import { Table, Button, Input, Space, message, Popconfirm, Empty, Alert } from 'antd';
 import { useEffect, useState } from 'react';
 import { listPendingRecords, approveBorrow } from '../../api/borrows';
 import { usePagination } from '../../hooks/usePagination';
 import StatusBadge from '../../components/StatusBadge';
 import type { BorrowRecord } from '../../api/types';
+import { AxiosError } from 'axios';
+import { ErrCode } from '../../api/types';
 
 export default function PendingList() {
   const pag = usePagination();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<BorrowRecord[]>([]);
   const [note, setNote] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
+    setError(null);
     try {
       const resp = await listPendingRecords({ page: pag.page, page_size: pag.pageSize });
       if (resp.code === 0 && resp.data) {
         setData(resp.data.list);
         pag.setTotal(resp.data.total);
       }
+    } catch (err: unknown) {
+      const axiosErr = err as AxiosError<{ code: number; msg: string }>;
+      if (axiosErr.response?.status === 401 && axiosErr.response?.data?.code === ErrCode.ErrTokenInvalid) {
+        return;
+      }
+      setError(axiosErr.message || '加载失败');
     } finally { setLoading(false); }
   };
 
@@ -87,7 +97,9 @@ export default function PendingList() {
   return (
     <>
       <div className="page-header"><h2>待审批列表</h2></div>
-      <Table rowKey="id" columns={columns} dataSource={data} loading={loading} pagination={pag.paginationProps} scroll={{ x: 1000 }} />
+      {error ? <Alert type="error" message="加载失败" description={error} showIcon style={{ marginBottom: 16 }} /> : null}
+      <Table rowKey="id" columns={columns} dataSource={data} loading={loading} pagination={pag.paginationProps} scroll={{ x: 1000 }}
+        locale={{ emptyText: <Empty description="暂无待审批工单" /> }} />
     </>
   );
 }

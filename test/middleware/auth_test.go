@@ -15,6 +15,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 func setupAuthMiddleware(t *testing.T) (*gin.Engine, *jwtpkg.Service, *miniredis.Miniredis) {
@@ -31,7 +32,7 @@ func setupAuthMiddleware(t *testing.T) (*gin.Engine, *jwtpkg.Service, *miniredis
 	jwtService := jwtpkg.NewService(cfg, rdb)
 
 	router := gin.New()
-	router.Use(middleware.Auth(jwtService))
+	router.Use(middleware.Auth(jwtService, zap.NewNop()))
 
 	router.GET("/api/v1/equipments", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
@@ -115,7 +116,7 @@ func TestAuthMiddleware_ExpiredToken(t *testing.T) {
 	jwtService := jwtpkg.NewService(cfg, rdb)
 
 	router := gin.New()
-	router.Use(middleware.Auth(jwtService))
+	router.Use(middleware.Auth(jwtService, zap.NewNop()))
 	router.GET("/api/v1/equipments", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"ok": true})
 	})
@@ -156,7 +157,7 @@ func TestAuthMiddleware_WhiteListSkip(t *testing.T) {
 	jwtService := jwtpkg.NewService(cfg, rdb)
 
 	router := gin.New()
-	router.Use(middleware.Auth(jwtService))
+	router.Use(middleware.Auth(jwtService, zap.NewNop()))
 
 	// Health endpoint
 	router.GET("/api/v1/health", func(c *gin.Context) {

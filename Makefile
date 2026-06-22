@@ -3,6 +3,9 @@
         test-backend test-frontend test-integration test-e2e test-coverage test-all seed \
         vet-backend vet-frontend
 
+# ── Disable pager (stops Windows 'more' from hijacking every command output) ──
+export PAGER := cat
+
 # ── Variables ──────────────────────────────────────────────────────
 
 GO            := go
