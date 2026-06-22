@@ -51,7 +51,7 @@ export default function UserList() {
       const resp = await disableUser(id);
       if (resp.code === 0) {
         message.success('用户已禁用');
-        fetchData();
+        fetchData(pag.page, pag.pageSize);
       } else {
         message.error(resp.msg || '禁用失败');
       }

@@ -1,5 +1,7 @@
 # 实验室资产与人员管理系统
 
+[![CI](https://github.com/RedHuang-0622/manage_system/actions/workflows/ci.yml/badge.svg)](https://github.com/RedHuang-0622/manage_system/actions/workflows/ci.yml)
+
 基于 **Go + Gin** 的单体 REST API 后端系统，面向高校实验室的日常管理场景，涵盖**身份访问管理（IAM）**、**设备资产管理**、**借阅工单流转**三大核心模块。
 
 ## 技术栈

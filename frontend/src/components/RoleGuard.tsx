@@ -2,7 +2,7 @@ import { Navigate } from 'react-router-dom';
 import { usePermission } from '../hooks/usePermission';
 
 interface RoleGuardProps {
-  roles: Array<'super_admin' | 'lab_admin' | 'member'>;
+  roles: Array<'super_admin' | 'lab_admin' | 'equipment_manager' | 'member' | 'viewer'>;
   children: React.ReactNode;
   fallback?: React.ReactNode;
 }

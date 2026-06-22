@@ -4,7 +4,7 @@
  */
 import { chromium, type Page } from '@playwright/test';
 
-const BASE = 'http://localhost:5173';
+const BASE = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5173';
 
 async function loginAndSave(page: Page, user: string, pass: string, file: string) {
   await page.goto(`${BASE}/login`);
@@ -16,10 +16,7 @@ async function loginAndSave(page: Page, user: string, pass: string, file: string
 }
 
 export default async function globalSetup() {
-  const browser = await chromium.launch({
-    executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe',
-    headless: true,
-  });
+  const browser = await chromium.launch({ headless: true });
 
   console.log('  Setting up admin auth...');
   const adminCtx = await browser.newContext();

@@ -5,7 +5,6 @@ import {
   ExperimentOutlined,
   UserOutlined,
   FileTextOutlined,
-  EyeOutlined,
 } from '@ant-design/icons';
 import { usePermission } from '../../hooks/usePermission';
 

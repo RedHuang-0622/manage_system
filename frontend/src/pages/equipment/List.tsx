@@ -15,7 +15,7 @@ export default function EquipList() {
   const pag = usePagination({ defaultPageSize: 12 });
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<Equipment[]>([]);
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const [keyword, setKeyword] = useState(searchParams.get('keyword') || '');
   const [category, setCategory] = useState(searchParams.get('category') || '');
   const [onlyAvailable, setOnlyAvailable] = useState(searchParams.get('only_available') || '0');

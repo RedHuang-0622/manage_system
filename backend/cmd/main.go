@@ -45,7 +45,10 @@ func main() {
 
 	// 3. 初始化数据库
 	db := initDB(cfg, logger)
-	sqlDB, _ := db.DB()
+	sqlDB, err := db.DB()
+	if err != nil {
+		logger.Fatal("获取底层sql.DB失败", zap.Error(err))
+	}
 	sqlDB.SetMaxIdleConns(cfg.MySQL.MaxIdleConns)
 	sqlDB.SetMaxOpenConns(cfg.MySQL.MaxOpenConns)
 	sqlDB.SetConnMaxLifetime(time.Duration(cfg.MySQL.ConnMaxLifetime) * time.Second)
@@ -71,7 +74,7 @@ func main() {
 	jwtService := jwt.NewService(cfg.JWT, rdb)
 
 	// 7. 初始化 Casbin
-	enforcer := initCasbin(db, cfg.Casbin.ModelPath)
+	enforcer := initCasbin(db, cfg.Casbin.ModelPath, logger)
 
 	// 8. 种子数据
 	seedData(db, enforcer, logger)
@@ -152,19 +155,19 @@ func initDB(cfg *config.Config, logger *zap.Logger) *gorm.DB {
 	return db
 }
 
-func initCasbin(db *gorm.DB, modelPath string) *casbin.Enforcer {
+func initCasbin(db *gorm.DB, modelPath string, logger *zap.Logger) *casbin.Enforcer {
 	adapter, err := gormadapter.NewAdapterByDB(db)
 	if err != nil {
-		log.Fatalf("Casbin适配器初始化失败: %v", err)
+		logger.Fatal("Casbin适配器初始化失败", zap.Error(err))
 	}
 
 	enforcer, err := casbin.NewEnforcer(modelPath, adapter)
 	if err != nil {
-		log.Fatalf("Casbin初始化失败: %v", err)
+		logger.Fatal("Casbin初始化失败", zap.Error(err))
 	}
 
 	if err := enforcer.LoadPolicy(); err != nil {
-		log.Fatalf("Casbin加载策略失败: %v", err)
+		logger.Fatal("Casbin加载策略失败", zap.Error(err))
 	}
 
 	return enforcer
@@ -193,15 +196,15 @@ func seedData(db *gorm.DB, enforcer *casbin.Enforcer, logger *zap.Logger) {
 		hash, _ := bcrypt.GenerateFromPassword([]byte("admin123"), 12)
 		var superAdminRole models.SysRole
 		db.Where("role_name = ?", "super_admin").First(&superAdminRole)
-		admin := models.SysUser{
+		newAdmin := models.SysUser{
 			Username:     "admin",
 			PasswordHash: string(hash),
 			RealName:     "系统管理员",
 			RoleID:       superAdminRole.ID,
 			Status:       1,
 		}
-		db.Create(&admin)
-		logger.Info("种子管理员已创建 (admin / admin123)")
+		db.Create(&newAdmin)
+		logger.Info("种子管理员已创建", zap.String("username", "admin"))
 	}
 
 	// 种子 Casbin 策略（逐条幂等，不会因已有旧策略而跳过新角色）
@@ -263,8 +266,4 @@ func seedData(db *gorm.DB, enforcer *casbin.Enforcer, logger *zap.Logger) {
 	logger.Info("Casbin策略已同步")
 }
 
-func hasPolicy(enforcer *casbin.Enforcer, sub, obj, act string) bool {
-	policies := enforcer.GetFilteredPolicy(0, sub, obj, act)
-	return len(policies) > 0
-}
 

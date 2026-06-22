@@ -1,0 +1,456 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  workflow_dispatch: # 手动触发
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true # 新 push 自动取消旧 run
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  GO_VERSION: "1.23"
+  NODE_VERSION: "20"
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════
+  # 1. Backend: vet + build (阻塞)
+  # ═══════════════════════════════════════════════════════════════════
+  backend-vet:
+    name: "BE: vet + build"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: go vet (backend)
+        run: cd backend && go vet ./...
+
+      - name: go build
+        run: cd backend && go build -o /dev/null ./cmd/main.go
+
+  # ═══════════════════════════════════════════════════════════════════
+  # 2. Frontend: tsc + lint + build (阻塞)
+  # ═══════════════════════════════════════════════════════════════════
+  frontend-vet:
+    name: "FE: tsc + lint + build"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: TypeScript type-check
+        run: cd frontend && npx tsc --noEmit
+
+      - name: ESLint
+        run: cd frontend && npm run lint
+
+      - name: Vite build
+        run: cd frontend && npm run build
+
+  # ═══════════════════════════════════════════════════════════════════
+  # 3. Backend: unit tests (race + coverage, 阻塞)
+  # ═══════════════════════════════════════════════════════════════════
+  backend-test:
+    name: "BE: test (Go ${{ matrix.go-version }})"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [backend-vet]
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: ["1.23", "1.24"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: go test (race + coverage)
+        run: |
+          cd test
+          go test -race -count=1 -coverprofile=coverage.out -coverpkg=manage_system/... -covermode=atomic ./...
+
+      - name: Upload coverage (Go ${{ matrix.go-version }})
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-go-${{ matrix.go-version }}
+          path: test/coverage.out
+          retention-days: 7
+
+      - name: Check coverage threshold (80%)
+        run: |
+          cd test
+          COV=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+          echo "Coverage: ${COV}%"
+          if (( $(echo "$COV < 80" | bc -l) )); then
+            echo "::warning::Coverage ${COV}% below 80% threshold"
+          fi
+
+  # ═══════════════════════════════════════════════════════════════════
+  # 4. Frontend: vitest unit tests (阻塞)
+  # ═══════════════════════════════════════════════════════════════════
+  frontend-test:
+    name: "FE: vitest"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [frontend-vet]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: vitest run
+        run: cd frontend && npx vitest run --coverage
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-frontend
+          path: frontend/coverage/
+          retention-days: 7
+
+  # ═══════════════════════════════════════════════════════════════════
+  # 5. Backend: integration tests (MySQL + Redis, 阻塞)
+  # ═══════════════════════════════════════════════════════════════════
+  backend-integration:
+    name: "BE: integration tests"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [backend-vet]
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: testpass
+          MYSQL_DATABASE: lab_manage_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=3
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Generate test config
+        run: |
+          cat > backend/conf/config.test.yaml << 'EOF'
+          server:
+            port: 8080
+            mode: test
+            read_timeout: 10
+            read_header_timeout: 5
+            write_timeout: 10
+            idle_timeout: 30
+            max_header_bytes: 1048576
+          mysql:
+            host: 127.0.0.1
+            port: 3306
+            user: root
+            password: testpass
+            database: lab_manage_test
+            charset: utf8mb4
+            max_idle_conns: 5
+            max_open_conns: 10
+            conn_max_lifetime: 3600
+          redis:
+            addr: 127.0.0.1:6379
+            password: ""
+            db: 0
+            pool_size: 10
+            min_idle_conns: 2
+          jwt:
+            secret: "ci-test-secret-key-at-least-32-chars-long!!"
+            expire: 7200
+            issuer: "lab-system-test"
+          casbin:
+            model_path: "conf/rbac_model.conf"
+          cors:
+            allowed_origins:
+              - "http://localhost:5173"
+          log:
+            path: "logs/app-test.log"
+            level: "info"
+            max_size: 10
+            max_backups: 1
+            max_age: 1
+          EOF
+
+      - name: Wait for MySQL
+        run: |
+          for i in $(seq 1 30); do
+            if mysqladmin ping -h 127.0.0.1 -u root -ptestpass --silent; then
+              echo "MySQL is ready"
+              break
+            fi
+            echo "Waiting for MySQL... ($i/30)"
+            sleep 2
+          done
+
+      - name: Run integration tests
+        run: |
+          cd test
+          go test -race -count=1 -tags=integration -coverprofile=coverage-integration.out -covermode=atomic ./...
+
+      - name: Upload integration coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-integration
+          path: test/coverage-integration.out
+          retention-days: 7
+
+  # ═══════════════════════════════════════════════════════════════════
+  # 6. E2E: Playwright cross-role tests (阻塞)
+  # ═══════════════════════════════════════════════════════════════════
+  e2e:
+    name: "E2E: Playwright"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [frontend-vet]
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: testpass
+          MYSQL_DATABASE: lab_manage_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=3
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps
+        run: cd frontend && npm ci
+
+      - name: Install Playwright browsers
+        run: cd frontend && npx playwright install --with-deps chromium
+
+      - name: Generate test config and seed DB
+        run: |
+          cat > backend/conf/config.test.yaml << 'EOF'
+          server:
+            port: 8080
+            mode: debug
+            read_timeout: 30
+            read_header_timeout: 10
+            write_timeout: 30
+            idle_timeout: 60
+            max_header_bytes: 1048576
+          mysql:
+            host: 127.0.0.1
+            port: 3306
+            user: root
+            password: testpass
+            database: lab_manage_test
+            charset: utf8mb4
+            max_idle_conns: 5
+            max_open_conns: 10
+            conn_max_lifetime: 3600
+          redis:
+            addr: 127.0.0.1:6379
+            password: ""
+            db: 0
+            pool_size: 10
+            min_idle_conns: 2
+          jwt:
+            secret: "ci-e2e-secret-key-at-least-32-chars-long!!!"
+            expire: 7200
+            issuer: "lab-system-e2e"
+          casbin:
+            model_path: "conf/rbac_model.conf"
+          cors:
+            allowed_origins:
+              - "http://localhost:5173"
+          log:
+            path: "logs/app-e2e.log"
+            level: "info"
+            max_size: 10
+            max_backups: 1
+            max_age: 1
+          EOF
+
+      - name: Start backend
+        run: |
+          cd backend
+          go run ./cmd/main.go &
+          # Wait for backend to be ready
+          for i in $(seq 1 30); do
+            if curl -s http://localhost:8080/api/v1/health | grep -q '"status"'; then
+              echo "Backend is ready"
+              break
+            fi
+            echo "Waiting for backend... ($i/30)"
+            sleep 2
+          done
+
+      - name: Run Playwright e2e tests
+        run: cd frontend && npx playwright test
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:5173
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          retention-days: 30
+
+  # ═══════════════════════════════════════════════════════════════════
+  # 7. Static analysis (阻塞)
+  # ═══════════════════════════════════════════════════════════════════
+  static-analysis:
+    name: "Static analysis"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [backend-vet]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: go mod tidy check
+        run: |
+          cd backend
+          go mod tidy
+          git diff --exit-code go.mod go.sum || (echo "::error::go.mod/go.sum not tidy — run 'go mod tidy'" && exit 1)
+
+      - name: gofmt check
+        run: |
+          UNFORMATTED=$(gofmt -l backend/ test/ 2>/dev/null)
+          if [ -n "$UNFORMATTED" ]; then
+            echo "::error::Files not gofmt'd:"
+            echo "$UNFORMATTED"
+            exit 1
+          fi
+
+      - name: govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          cd backend && govulncheck ./...
+
+  # ═══════════════════════════════════════════════════════════════════
+  # 8. Summary (总在最后运行)
+  # ═══════════════════════════════════════════════════════════════════
+  summary:
+    name: "Test Report"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [backend-vet, frontend-vet, backend-test, frontend-test, backend-integration, e2e, static-analysis]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate test report
+        run: |
+          cat > test-report.md << 'REPORT'
+          # CI Test Report
+
+          ## Job Status
+
+          | Job | Status |
+          |-----|--------|
+          | backend-vet | ${{ needs.backend-vet.result }} |
+          | frontend-vet | ${{ needs.frontend-vet.result }} |
+          | backend-test | ${{ needs.backend-test.result }} |
+          | frontend-test | ${{ needs.frontend-test.result }} |
+          | backend-integration | ${{ needs.backend-integration.result }} |
+          | e2e | ${{ needs.e2e.result }} |
+          | static-analysis | ${{ needs.static-analysis.result }} |
+
+          ## Pipeline
+
+          - **Go**: ${{ env.GO_VERSION }} (matrix: 1.23, 1.24)
+          - **Node**: ${{ env.NODE_VERSION }}
+          - **Services**: MySQL 8.0, Redis 7
+          - **Concurrency**: cancel-in-progress on same branch/PR
+
+          ## Notes
+
+          - `backend-test` runs with `-race -count=1 -covermode=atomic`
+          - `backend-integration` uses `-tags=integration` with real MySQL + Redis
+          - `e2e` runs Playwright against a live backend + Vite dev server
+          - Coverage thresholds: 80% (warning only in this report)
+          - `govulncheck` is **blocking** — any CVE must be fixed before merge
+
+          *Generated by CI pipeline on ${{ github.sha }}*
+          REPORT
+
+      - name: Upload test report
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: test-report.md
+          retention-days: 30

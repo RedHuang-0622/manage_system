@@ -1,0 +1,209 @@
+{
+  "title": "实验室资产与人员管理系统",
+  "author": "黄子然 · 软件工程专业",
+  "style": "B",
+  "theme": "ikb",
+  "slides": [
+    {
+      "layout": "hero_cover",
+      "theme_class": "hero dark",
+      "kicker": "软件工程 · 毕业设计答辩",
+      "title": "实验室资产与人员管理系统",
+      "subtitle": "基于 Go 技术栈的完整业务闭环纯后端系统",
+      "lead": "Gin · GORM · Redis · Casbin · JWT · Zap · Viper — 课程指定全技术栈集成",
+      "meta": "黄子然 · 软件工程专业 · 2026"
+    },
+    {
+      "layout": "pipeline",
+      "theme_class": "light",
+      "kicker": "工程规范 · 01",
+      "title": "四层分层架构设计",
+      "pipelines": [
+        {
+          "label": "请求链路 (自上而下)",
+          "steps": [
+            { "nb": 1, "title": "Router", "desc": "Gin 路由注册，中间件链编排" },
+            { "nb": 2, "title": "Controller", "desc": "参数绑定校验，响应格式化" },
+            { "nb": 3, "title": "Service", "desc": "业务逻辑编排，事务与缓存策略" },
+            { "nb": 4, "title": "DAO", "desc": "GORM 数据访问，FOR UPDATE 行锁" },
+            { "nb": 5, "title": "Model", "desc": "GORM 实体定义，状态机与常量" }
+          ]
+        },
+        {
+          "label": "依赖注入 (main.go)",
+          "steps": [
+            { "nb": 1, "title": "initDB", "desc": "GORM + MySQL 连接池初始化" },
+            { "nb": 2, "title": "initRedis", "desc": "go-redis v9 客户端初始化" },
+            { "nb": 3, "title": "initCasbin", "desc": "Casbin + GORM Adapter 策略加载" },
+            { "nb": 4, "title": "Assemble", "desc": "DAO → Service → Controller 注入组装" }
+          ]
+        }
+      ]
+    },
+    {
+      "layout": "pipeline",
+      "theme_class": "light",
+      "kicker": "工程规范 · 02",
+      "title": "中间件执行链",
+      "pipelines": [
+        {
+          "label": "全局中间件 (所有路由)",
+          "steps": [
+            { "nb": 1, "title": "Recovery", "desc": "safego 安全 goroutine 封装，panic 恢复 + 堆栈记录" },
+            { "nb": 2, "title": "RequestID", "desc": "google/uuid 注入追踪 ID，全链路可追溯" },
+            { "nb": 3, "title": "CORS", "desc": "可配置跨域策略，前端独立部署" },
+            { "nb": 4, "title": "Logger", "desc": "Zap JSON 结构化日志：method/path/status/latency" }
+          ]
+        },
+        {
+          "label": "受保护路由中间件 (/api/v1/*)",
+          "steps": [
+            { "nb": 5, "title": "Auth", "desc": "golang-jwt v5 解析 Bearer Token，黑名单校验" },
+            { "nb": 6, "title": "Casbin", "desc": "RBAC 鉴权：Enforce(sub, obj, act)，拒绝记 Zap 日志" }
+          ]
+        }
+      ]
+    },
+    {
+      "layout": "mixed_text_image",
+      "theme_class": "light",
+      "kicker": "日志系统 · Zap + Lumberjack",
+      "title": "结构化日志 · 按天切割",
+      "body": "日志系统基于 go.uber.org/zap + gopkg.in/natefinch/lumberjack.v2 实现：\n\n■ zapcore.NewTee — 同时输出到控制台和文件\n■ JSON 编码器 — 可被 ELK 等日志平台直接采集\n■ Lumberjack 滚动策略 — 单文件最大 100MB，保留 30 个备份，最长 7 天\n■ 旧日志自动 gzip 压缩\n\n所有接口请求、数据库慢查询、异常报错均已实现结构化记录与自动切割。",
+      "callout": "config.yaml → log.level: info / max_size: 100 / max_backups: 30 / max_age: 7",
+      "callout_src": "backend/pkg/zap/zap.go",
+      "image": "images/placeholder_zap_log_output.png"
+    },
+    {
+      "layout": "mixed_text_image",
+      "theme_class": "light",
+      "kicker": "配置管理 · Viper",
+      "title": "配置分离 · 环境变量覆盖",
+      "body": "配置管理使用 github.com/spf13/viper 实现代码与配置的完全分离：\n\n■ config.yaml — 集中管理所有环境参数（MySQL/Redis/JWT/Log/CORS）\n■ 环境变量覆盖 — 前缀 LAB_，自动将点号转为下划线\n■ 示例：LAB_JWT_SECRET 覆盖 jwt.secret，容器化部署零代码修改\n■ AutomaticEnv — 自动绑定环境变量\n\n所有配置项通过 mapstructure 标签映射到 Config 结构体，编译期类型安全。",
+      "callout": "backend/pkg/config/config.go · backend/conf/config.yaml",
+      "callout_src": "",
+      "image": "images/placeholder_viper_config.png"
+    },
+    {
+      "layout": "big_numbers",
+      "theme_class": "light",
+      "kicker": "认证与安全 · 03",
+      "title": "多层安全防护体系",
+      "lead": "从密码存储到接口限流，全链路安全设计",
+      "stats": [
+        { "label": "JWT 签名算法", "number": "HS256", "note": "golang-jwt/jwt/v5 · Claims 嵌入角色信息" },
+        { "label": "密码哈希", "number": "bcrypt", "note": "golang.org/x/crypto · 数据库永不明文存储" },
+        { "label": "登录限流", "number": "10次/分", "note": "go-redis v9 固定窗口 · 每 IP 独立计数" },
+        { "label": "JWT 黑名单", "number": "SHA-256", "note": "Redis 存储 Token 哈希 · 登出即时失效" },
+        { "label": "统一错误码", "number": "1xxx-5xxx", "note": "errcode 包 · 统一 JSON 响应格式" },
+        { "label": "参数校验", "number": "Validator", "note": "go-playground/validator · Gin binding 标签" }
+      ]
+    },
+    {
+      "layout": "compare",
+      "theme_class": "light",
+      "kicker": "权限控制 · 04",
+      "title": "Casbin RBAC 鉴权",
+      "left": {
+        "kicker": "普通成员",
+        "title": "403 Forbidden",
+        "items": [
+          "角色: member (普通成员)",
+          "请求: POST /api/v1/borrow/approve",
+          "Casbin 策略匹配: member 无审批权限",
+          "enforcer.Enforce() → false",
+          "返回: 403 + errcode 4001（权限不足）",
+          "Zap 日志记录: user_id/path/method"
+        ]
+      },
+      "right": {
+        "kicker": "实验室负责人",
+        "title": "200 OK",
+        "items": [
+          "角色: lab_admin (实验室负责人)",
+          "请求: POST /api/v1/borrow/approve",
+          "Casbin 策略匹配: lab_admin 正则匹配通过",
+          "enforcer.Enforce() → true",
+          "返回: 200 + 审批成功响应",
+          "角色继承链: super_admin → lab_admin → equipment_manager"
+        ]
+      }
+    },
+    {
+      "layout": "mixed_text_image",
+      "theme_class": "light",
+      "kicker": "权限控制 · Casbin 配置详解",
+      "title": "RBAC 模型 · 角色继承 · 策略持久化",
+      "body": "【Model 定义】conf/rbac_model.conf\n  r = sub, obj, act          — 请求：谁 对 什么资源 做 什么操作\n  p = sub, obj, act          — 策略：谁 可以 对 什么资源 做 什么操作\n  g = _, _                   — 角色继承：下级自动拥有上级权限\n  e = some(where(p.eft==allow)) — 任意一条策略匹配即放行\n  m = g(r.sub,p.sub) && keyMatch2(r.obj,p.obj) && regexMatch(r.act,p.act)\n\n【Adapter】github.com/casbin/gorm-adapter/v3\n  策略存储在 MySQL casbin_rule 表，增删即时生效，无需重启服务\n\n【5 角色 + 继承链】g 函数实现逐级继承\n  super_admin → lab_admin → equipment_manager\n  上级角色自动拥有下级角色的全部权限\n\n【30+ 条策略】逐条幂等写入\n  super_admin: /api/v1/*  .*        (全局)\n  lab_admin:    /api/v1/users* .*   (用户管理)\n  member:       /api/v1/equipments* GET (只读设备)\n  viewer:       /api/v1/equipments* GET (只读观察)\n\n【中间件】router/middleware/casbin.go\n  提取 role_name → Enforce(sub, obj, act) → 拒绝记 Zap 日志",
+      "callout": "Enforce('member', '/api/v1/borrows/1/approve', 'POST') → false → 403",
+      "callout_src": "conf/rbac_model.conf · cmd/main.go:seedData() · middleware/casbin.go",
+      "image": "images/placeholder_casbin_roles.png"
+    },
+    {
+      "layout": "pipeline",
+      "theme_class": "light",
+      "kicker": "缓存优化 · 05",
+      "title": "Redis Cache-Aside 策略",
+      "pipelines": [
+        {
+          "label": "读流程 (设备列表查询)",
+          "steps": [
+            { "nb": 1, "title": "Client Request", "desc": "前端请求 GET /api/v1/equipment/list" },
+            { "nb": 2, "title": "Redis GET", "desc": "查询 equipment:list:* 缓存 Key" },
+            { "nb": 3, "title": "Cache Hit?", "desc": "命中 → 直接返回 JSON，数据库零压力" },
+            { "nb": 4, "title": "MySQL Query", "desc": "未命中 → GORM 查询 + 写入 Redis 设 TTL" },
+            { "nb": 5, "title": "Return", "desc": "返回数据，下次请求即可命中缓存" }
+          ]
+        },
+        {
+          "label": "写流程 (设备借出/归还/修改)",
+          "steps": [
+            { "nb": 1, "title": "Write Op", "desc": "借出/归还/修改 → GORM 更新 MySQL" },
+            { "nb": 2, "title": "Invalidate", "desc": "主动 DELETE 对应 Redis 缓存 Key" },
+            { "nb": 3, "title": "Next Read", "desc": "下次查询 Miss → 回源 MySQL → 写入新缓存" }
+          ]
+        }
+      ]
+    },
+    {
+      "layout": "pipeline",
+      "theme_class": "light",
+      "kicker": "事务与并发 · 06",
+      "title": "GORM 事务 + 行级锁",
+      "pipelines": [
+        {
+          "label": "借阅审批事务流程",
+          "steps": [
+            { "nb": 1, "title": "Begin Tx", "desc": "db.Transaction(func(tx *gorm.DB) error" },
+            { "nb": 2, "title": "FOR UPDATE", "desc": "clause.Locking 对借阅记录+设备行加排他锁" },
+            { "nb": 3, "title": "Update Status", "desc": "借阅记录状态 → '已通过' (通过 tx 实例)" },
+            { "nb": 4, "title": "Update Stock", "desc": "设备 available-- 扣减库存 (通过 tx 实例)" },
+            { "nb": 5, "title": "Commit / Rollback", "desc": "全部成功 → Commit；任一失败 → 自动 Rollback" }
+          ]
+        }
+      ]
+    },
+    {
+      "layout": "big_numbers",
+      "theme_class": "light",
+      "kicker": "数据库优化 · 07",
+      "title": "连接池与索引优化",
+      "lead": "GORM + MySQL 生产级数据库配置",
+      "stats": [
+        { "label": "最大连接数", "number": "100", "note": "SetMaxOpenConns(100)" },
+        { "label": "空闲连接数", "number": "10", "note": "SetMaxIdleConns(10)" },
+        { "label": "连接最大存活", "number": "1h", "note": "SetConnMaxLifetime(time.Hour)" },
+        { "label": "GORM 日志级别", "number": "Warn", "note": "避免生产刷屏 + Zap 记录慢查询" },
+        { "label": "高频索引字段", "number": "3+", "note": "equipment.status / borrow.user_id / borrow.status" },
+        { "label": "AutoMigrate", "number": "4 表", "note": "SysUser · SysRole · LabEquipment · BorrowRecord" }
+      ]
+    },
+    {
+      "layout": "closing",
+      "theme_class": "hero dark",
+      "title": "Thank You",
+      "lead": "配置层 Viper · 日志层 Zap+Lumberjack · 传输层 Gin+Validator · 认证层 JWT+bcrypt · 鉴权层 Casbin+GORMAdapter · 缓存层 go-redis · 持久层 GORM+MySQL · 安全层 Recovery+RateLimit+CORS",
+      "meta": "黄子然 · 软件工程专业 · 2026"
+    }
+  ]
+}

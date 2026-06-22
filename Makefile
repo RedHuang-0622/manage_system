@@ -1,6 +1,7 @@
 .PHONY: build dev stop test lint clean install deploy docker-build help \
         build-backend build-frontend dev-backend dev-frontend \
-        test-backend test-frontend seed
+        test-backend test-frontend test-integration test-e2e test-coverage test-all seed \
+        vet-backend vet-frontend
 
 # ── Variables ──────────────────────────────────────────────────────
 
@@ -54,17 +55,41 @@ stop:
 
 ##@ Test
 
-test: test-backend
+test: vet-backend vet-frontend test-backend test-frontend
+	@echo "[test] All lightweight tests passed."
+
+test-all: vet-backend vet-frontend test-backend test-frontend test-integration test-e2e
+	@echo "[test-all] Full test suite passed."
+
+vet-backend:
+	@echo "[vet:backend] go vet..."
+	cd $(BACKEND_DIR) && $(GO) vet ./...
+
+vet-frontend:
+	@echo "[vet:frontend] tsc --noEmit..."
+	cd $(FRONTEND_DIR) && npx tsc --noEmit
 
 test-backend:
-	@echo "[test-backend] go vet..."
-	cd $(BACKEND_DIR) && $(GO) vet ./...
-	@echo "[test-backend] go test..."
-	cd test && $(GO) test -race -count=1 -cover ./...
+	@echo "[test-backend] go test (race)..."
+	cd test && $(GO) test -race -count=1 -cover -coverpkg=manage_system/... -covermode=atomic ./...
 
 test-frontend:
-	@echo "[test-frontend] Running vitest..."
+	@echo "[test-frontend] vitest..."
 	cd $(FRONTEND_DIR) && $(NPM) run test
+
+test-integration:
+	@echo "[test-integration] go test with integration tag..."
+	cd test && $(GO) test -race -count=1 -cover -coverpkg=manage_system/... -covermode=atomic -tags=integration ./...
+
+test-e2e:
+	@echo "[test-e2e] Playwright..."
+	cd $(FRONTEND_DIR) && $(NPM) run test:e2e
+
+test-coverage:
+	@echo "[test-coverage] Generating coverage report..."
+	cd test && $(GO) test -race -count=1 -coverprofile=coverage.out -covermode=atomic ./...
+	cd test && $(GO) tool cover -html=coverage.out -o coverage.html
+	@echo "  -> test/coverage.html"
 
 ##@ Lint
 
@@ -109,7 +134,13 @@ help:
 	@echo "  make stop         Kill all dev services"
 	@echo "  make build        Build production artifacts"
 	@echo "  make seed         Inject demo data (users, equipment, borrows)"
-	@echo "  make test         Run backend tests"
+	@echo "  make test         Run vet + lightweight tests (backend + frontend)"
+	@echo "  make test-all     Run full test suite (unit + integration + e2e)"
+	@echo "  make test-backend Run backend unit tests (race + coverage)"
+	@echo "  make test-frontend Run frontend unit tests (vitest)"
+	@echo "  make test-integration Run integration tests (requires MySQL + Redis)"
+	@echo "  make test-e2e     Run Playwright e2e tests (requires running server)"
+	@echo "  make test-coverage Generate HTML coverage report"
 	@echo "  make lint         Run linters"
 	@echo "  make clean        Remove build artifacts"
 	@echo "  make install      Install frontend dependencies"
