@@ -371,6 +371,9 @@ func (s *IAMService) DisableUser(ctx context.Context, id uint, operatorID uint) 
 
 // invalidateUserCache 失效所有用户列表缓存（写操作后调用）
 func (s *IAMService) invalidateUserCache(ctx context.Context) {
+	if s.redisClient == nil {
+		return
+	}
 	iter := s.redisClient.Scan(ctx, 0, "user:list:*", 100).Iterator()
 	for iter.Next(ctx) {
 		s.redisClient.Del(ctx, iter.Val())

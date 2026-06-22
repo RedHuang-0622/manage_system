@@ -296,4 +296,33 @@ func seedData(db *gorm.DB, enforcer *casbin.Enforcer, logger *zap.Logger) {
 	}
 
 	logger.Info("Casbin策略已同步")
+	// 种子设备数据（E2E 测试需要 —— 幂等创建）
+	type seedEquip struct {
+		name, model, category, location string
+		stock                           uint
+	}
+	equipment := []seedEquip{
+		{"高性能计算服务器", "Dell R750xa", "服务器", "A101机房", 5},
+		{"GPU深度学习工作站", "NVIDIA DGX A100", "GPU服务器", "A102机房", 3},
+		{"示波器", "Tektronix MSO64", "测量仪器", "B201实验室", 10},
+		{"信号发生器", "Keysight 33600A", "信号源", "B202实验室", 8},
+	}
+	for _, eq := range equipment {
+		var existing models.LabEquipment
+		if err := db.Where("name = ?", eq.name).First(&existing).Error; err != nil {
+			db.Create(&models.LabEquipment{
+				Name:           eq.name,
+				Model:          eq.model,
+				Category:       eq.category,
+				TotalStock:     eq.stock,
+				AvailableStock: eq.stock,
+				Location:       eq.location,
+				Status:         1,
+			})
+			logger.Info("种子设备已创建",
+				zap.String("name", eq.name),
+				zap.String("category", eq.category))
+		}
+	}
+
 }
