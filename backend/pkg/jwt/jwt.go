@@ -22,11 +22,11 @@ type Claims struct {
 }
 
 type Service struct {
-	secret         string
-	expire         time.Duration
-	issuer         string
-	redisClient    *redis.Client
-	memBlacklist   sync.Map // key: hash, value: expireAt (time.Time) — in-memory fallback when Redis is nil
+	secret       string
+	expire       time.Duration
+	issuer       string
+	redisClient  *redis.Client
+	memBlacklist sync.Map // key: hash, value: expireAt (time.Time) — in-memory fallback when Redis is nil
 }
 
 func NewService(cfg config.JWTConfig, rdb *redis.Client) *Service {
