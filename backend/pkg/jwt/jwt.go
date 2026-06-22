@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -21,10 +22,11 @@ type Claims struct {
 }
 
 type Service struct {
-	secret      string
-	expire      time.Duration
-	issuer      string
-	redisClient *redis.Client
+	secret         string
+	expire         time.Duration
+	issuer         string
+	redisClient    *redis.Client
+	memBlacklist   sync.Map // key: hash, value: expireAt (time.Time) — in-memory fallback when Redis is nil
 }
 
 func NewService(cfg config.JWTConfig, rdb *redis.Client) *Service {
@@ -83,12 +85,15 @@ func (s *Service) ParseToken(tokenString string) (*Claims, error) {
 }
 
 func (s *Service) AddToBlacklist(tokenString string, expireAt time.Time) error {
-	if s.redisClient == nil {
-		return nil
-	}
 	hash := sha256hex(tokenString)
 	ttl := time.Until(expireAt)
 	if ttl <= 0 {
+		return nil
+	}
+
+	if s.redisClient == nil {
+		// In-memory fallback when no Redis (e.g. integration tests)
+		s.memBlacklist.Store(hash, expireAt)
 		return nil
 	}
 
@@ -97,10 +102,20 @@ func (s *Service) AddToBlacklist(tokenString string, expireAt time.Time) error {
 }
 
 func (s *Service) IsInBlacklist(tokenString string) bool {
+	hash := sha256hex(tokenString)
+
 	if s.redisClient == nil {
+		// In-memory fallback when no Redis (e.g. integration tests)
+		if expireAt, ok := s.memBlacklist.Load(hash); ok {
+			if time.Now().Before(expireAt.(time.Time)) {
+				return true
+			}
+			// Expired, clean up
+			s.memBlacklist.Delete(hash)
+		}
 		return false
 	}
-	hash := sha256hex(tokenString)
+
 	key := "jwt:blacklist:" + hash
 	val, err := s.redisClient.Get(context.Background(), key).Result()
 	if err != nil || val != "1" {
