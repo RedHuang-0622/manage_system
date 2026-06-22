@@ -88,11 +88,11 @@ func main() {
 
 	// Seed demo equipment
 	type equipSeed struct {
-		Name        string
-		Model       string
-		Category    string
-		TotalStock  uint
-		Location    string
+		Name       string
+		Model      string
+		Category   string
+		TotalStock uint
+		Location   string
 	}
 	equips := []equipSeed{
 		{"示波器 TDS2024C", "TDS2024C", "测量仪器", 3, "A301实验室"},
@@ -129,13 +129,13 @@ func main() {
 	fmt.Println("库存已重置")
 
 	type borrowSeed struct {
-		Username     string
+		Username      string
 		EquipmentName string
-		Quantity     uint
-		ApplyNote    string
-		ApproveNote  string
-		Approve      bool
-		Return       bool
+		Quantity      uint
+		ApplyNote     string
+		ApproveNote   string
+		Approve       bool
+		Return        bool
 	}
 	borrows := []borrowSeed{
 		{"lina", "GPU服务器 DGX-A100", 1, "深度学习训练需要GPU资源", "批准使用，请于周五前归还", true, true},

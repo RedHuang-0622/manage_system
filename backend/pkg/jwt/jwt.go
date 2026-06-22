@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"time"
 
-	"manage_system/pkg/config"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/redis/go-redis/v9"
+	"manage_system/pkg/config"
 )
 
 type Claims struct {

@@ -16,7 +16,7 @@ import (
 )
 
 type BorrowService struct {
-	db       *gorm.DB
+	db        *gorm.DB
 	borrowDAO dao.BorrowDAO
 	equipDAO  dao.EquipmentDAO
 	cacheSvc  EquipmentCacheInvalidator

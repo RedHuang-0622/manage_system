@@ -265,5 +265,3 @@ func seedData(db *gorm.DB, enforcer *casbin.Enforcer, logger *zap.Logger) {
 	enforcer.SavePolicy()
 	logger.Info("Casbin策略已同步")
 }
-
-

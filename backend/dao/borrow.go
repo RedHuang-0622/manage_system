@@ -3,9 +3,9 @@ package dao
 import (
 	"errors"
 
-	"manage_system/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+	"manage_system/models"
 )
 
 type BorrowDAO interface {

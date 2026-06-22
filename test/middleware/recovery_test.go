@@ -23,11 +23,11 @@ func setupRecoveryTest(t *testing.T) (*gin.Engine, *bytes.Buffer) {
 
 	buf := &bytes.Buffer{}
 	encoder := zapcore.NewJSONEncoder(zapcore.EncoderConfig{
-		TimeKey:        "ts",
-		MessageKey:     "msg",
-		LevelKey:       "level",
-		EncodeTime:     zapcore.ISO8601TimeEncoder,
-		EncodeLevel:    zapcore.LowercaseLevelEncoder,
+		TimeKey:     "ts",
+		MessageKey:  "msg",
+		LevelKey:    "level",
+		EncodeTime:  zapcore.ISO8601TimeEncoder,
+		EncodeLevel: zapcore.LowercaseLevelEncoder,
 	})
 	core := zapcore.NewCore(encoder, zapcore.AddSync(buf), zapcore.DebugLevel)
 	logger := zap.New(core)

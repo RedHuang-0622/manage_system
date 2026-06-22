@@ -23,9 +23,9 @@ func Casbin(enforcer *casbin.Enforcer, logger *zap.Logger) gin.HandlerFunc {
 			return
 		}
 
-		sub := roleName.(string)        // 如 "member"
-		obj := c.Request.URL.Path       // 如 "/api/v1/borrows/1/approve"
-		act := c.Request.Method         // 如 "POST"
+		sub := roleName.(string)  // 如 "member"
+		obj := c.Request.URL.Path // 如 "/api/v1/borrows/1/approve"
+		act := c.Request.Method   // 如 "POST"
 
 		ok, err := enforcer.Enforce(sub, obj, act)
 		if err != nil {

@@ -276,7 +276,7 @@ func TestBorrowService_Approve_ApproveSuccess(t *testing.T) {
 	cacheSvc.On("InvalidateEquipmentCache", mock.Anything, uint(1)).Return()
 
 	result, err := svc.Approve(context.Background(), 100, true, 1, "approved")
-		_ = result
+	_ = result
 	require.NoError(t, err)
 	assert.Equal(t, models.BorrowStatusBorrowed, result.Status)
 	assert.Equal(t, uint(3), equip.AvailableStock) // 5 - 2
@@ -297,7 +297,7 @@ func TestBorrowService_Approve_Reject(t *testing.T) {
 	cacheSvc.On("InvalidateEquipmentCache", mock.Anything, uint(1)).Return()
 
 	result, err := svc.Approve(context.Background(), 100, false, 1, "设备已预约")
-		_ = result
+	_ = result
 	require.NoError(t, err)
 	assert.Equal(t, models.BorrowStatusRejected, result.Status)
 	assert.Equal(t, "设备已预约", result.ApproveNote)
@@ -316,8 +316,8 @@ func TestBorrowService_Approve_InsufficientStock(t *testing.T) {
 	equipDAO.On("GetForUpdate", mock.AnythingOfType("*gorm.DB"), uint(1)).Return(equip, nil)
 
 	result, err := svc.Approve(context.Background(), 100, true, 1, "")
-		_ = result
-		_ = result
+	_ = result
+	_ = result
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "库存不足")
 	_ = result // record was fetched before error
@@ -339,8 +339,8 @@ func TestBorrowService_Approve_StockExactlyEqual(t *testing.T) {
 	cacheSvc.On("InvalidateEquipmentCache", mock.Anything, uint(1)).Return()
 
 	result, err := svc.Approve(context.Background(), 100, true, 1, "")
-		_ = result
-		_ = result
+	_ = result
+	_ = result
 	require.NoError(t, err)
 	assert.Equal(t, uint(0), equip.AvailableStock)
 	assert.NotNil(t, result)
@@ -367,8 +367,8 @@ func TestBorrowService_Approve_AlreadyProcessed(t *testing.T) {
 	borrowDAO.On("GetForUpdate", mock.AnythingOfType("*gorm.DB"), uint(100)).Return(record, nil)
 
 	result, err := svc.Approve(context.Background(), 100, true, 1, "")
-		_ = result
-		_ = result
+	_ = result
+	_ = result
 	assert.Contains(t, err.Error(), "工单状态异常")
 	_ = result
 }
@@ -384,8 +384,8 @@ func TestBorrowService_Approve_AlreadyRejected(t *testing.T) {
 	borrowDAO.On("GetForUpdate", mock.AnythingOfType("*gorm.DB"), uint(100)).Return(record, nil)
 
 	result, err := svc.Approve(context.Background(), 100, true, 1, "")
-		_ = result
-		_ = result
+	_ = result
+	_ = result
 	assert.Contains(t, err.Error(), "工单状态异常")
 	_ = result
 }
@@ -401,8 +401,8 @@ func TestBorrowService_Approve_AlreadyReturned(t *testing.T) {
 	borrowDAO.On("GetForUpdate", mock.AnythingOfType("*gorm.DB"), uint(100)).Return(record, nil)
 
 	result, err := svc.Approve(context.Background(), 100, true, 1, "")
-		_ = result
-		_ = result
+	_ = result
+	_ = result
 	assert.Contains(t, err.Error(), "工单状态异常")
 }
 
@@ -424,8 +424,8 @@ func TestBorrowService_Return_Success(t *testing.T) {
 	cacheSvc.On("InvalidateEquipmentCache", mock.Anything, uint(1)).Return()
 
 	result, err := svc.Return(context.Background(), 100, 3, false)
-		_ = result
-		_ = result
+	_ = result
+	_ = result
 	require.NoError(t, err)
 	assert.Equal(t, models.BorrowStatusReturned, result.Status)
 	assert.Equal(t, uint(5), equip.AvailableStock) // 3 + 2
@@ -448,7 +448,7 @@ func TestBorrowService_Return_AdminCanReturnOthers(t *testing.T) {
 	cacheSvc.On("InvalidateEquipmentCache", mock.Anything, uint(1)).Return()
 
 	result, err := svc.Return(context.Background(), 100, 1, true) // admin returning user 3's borrow
-		_ = result
+	_ = result
 	require.NoError(t, err)
 	assert.Equal(t, models.BorrowStatusReturned, result.Status)
 }
@@ -464,8 +464,8 @@ func TestBorrowService_Return_NotOwnerNonAdmin(t *testing.T) {
 	borrowDAO.On("GetForUpdate", mock.AnythingOfType("*gorm.DB"), uint(100)).Return(record, nil)
 
 	result, err := svc.Return(context.Background(), 100, 5, false) // user 5 is not owner
-		_ = result
-		_ = result
+	_ = result
+	_ = result
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "权限不足")
 }
@@ -481,8 +481,8 @@ func TestBorrowService_Return_WrongStatus(t *testing.T) {
 	borrowDAO.On("GetForUpdate", mock.AnythingOfType("*gorm.DB"), uint(100)).Return(record, nil)
 
 	result, err := svc.Return(context.Background(), 100, 3, false)
-		_ = result
-		_ = result
+	_ = result
+	_ = result
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "工单状态异常")
 }
@@ -653,7 +653,7 @@ func TestBorrowService_StockConsistencyModel(t *testing.T) {
 func TestBorrowDTO_ApproveAtNil(t *testing.T) {
 	record := &models.BorrowRecord{
 		ID: 1, UserID: 3, EquipmentID: 1, Quantity: 1,
-		Status: models.BorrowStatusApplied,
+		Status:  models.BorrowStatusApplied,
 		ApplyAt: time.Now(),
 	}
 	svc, borrowDAO, _, _ := setupBorrowService(t)

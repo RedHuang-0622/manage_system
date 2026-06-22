@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"manage_system/pkg/config"
 	"github.com/redis/go-redis/v9"
+	"manage_system/pkg/config"
 )
 
 func InitRedis(cfg config.RedisConfig) (*redis.Client, error) {

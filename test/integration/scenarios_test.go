@@ -5,7 +5,6 @@ package integration_test
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -37,15 +36,15 @@ func init() { gin.SetMode(gin.TestMode) }
 // ──────────────────────── Test Harness ────────────────────────
 
 type TestHarness struct {
-	DB            *gorm.DB
-	Redis         *redis.Client
-	Router        *gin.Engine
-	AdminToken    string
-	MemberToken   string
-	AdminID       uint
-	MemberID      uint
-	EquipID       uint
-	BorrowID      uint
+	DB          *gorm.DB
+	Redis       *redis.Client
+	Router      *gin.Engine
+	AdminToken  string
+	MemberToken string
+	AdminID     uint
+	MemberID    uint
+	EquipID     uint
+	BorrowID    uint
 }
 
 func setupIntegrationTest(t *testing.T) *TestHarness {
@@ -138,8 +137,8 @@ m = g(r.sub, p.sub) && keyMatch(r.obj, p.obj) && regexMatch(r.act, p.act)
 	borrowDAO := dao.NewBorrowDAO(db)
 
 	iamService := service.NewIAMService(db, userDAO, roleDAO, jwtService, nil)
-	equipService := service.NewEquipmentService(db, equipDAO, borrowDAO, nil)
-	borrowService := service.NewBorrowService(db, borrowDAO, equipDAO, equipService)
+	equipService := service.NewEquipmentService(db, equipDAO, borrowDAO, nil, nil)
+	borrowService := service.NewBorrowService(db, borrowDAO, equipDAO, equipService, nil)
 
 	r := router.SetupRouter(router.Dependencies{
 		AuthController:      controller.NewAuthController(iamService),

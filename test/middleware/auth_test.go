@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	jwtpkg "manage_system/pkg/jwt"
 	"manage_system/pkg/config"
+	jwtpkg "manage_system/pkg/jwt"
 	"manage_system/router/middleware"
 
 	"github.com/alicebob/miniredis/v2"

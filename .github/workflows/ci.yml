@@ -126,12 +126,13 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
-        run: cd frontend && npm ci
+        run: cd frontend && npm ci || npm install
 
       - name: vitest run
         run: cd frontend && npx vitest run --coverage
 
       - name: Upload coverage
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: coverage-frontend
@@ -178,7 +179,7 @@ jobs:
 
       - name: Generate test config
         run: |
-          cat > backend/conf/config.test.yaml << 'EOF'
+          cat > backend/conf/config.yaml << 'EOF'
           server:
             port: 8080
             mode: test
@@ -234,7 +235,7 @@ jobs:
       - name: Run integration tests
         run: |
           cd test
-          go test -race -count=1 -tags=integration -coverprofile=coverage-integration.out -covermode=atomic ./...
+          go test -race -count=1 -tags=integration -coverprofile=coverage-integration.out -coverpkg=manage_system/... -covermode=atomic ./...
 
       - name: Upload integration coverage
         uses: actions/upload-artifact@v4
@@ -295,7 +296,7 @@ jobs:
 
       - name: Generate test config and seed DB
         run: |
-          cat > backend/conf/config.test.yaml << 'EOF'
+          cat > backend/conf/config.yaml << 'EOF'
           server:
             port: 8080
             mode: debug
