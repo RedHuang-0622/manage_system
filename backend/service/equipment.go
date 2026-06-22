@@ -110,11 +110,13 @@ func (s *EquipmentService) Create(ctx context.Context, req *CreateEquipReq) (*mo
 func (s *EquipmentService) GetByID(ctx context.Context, id uint) (*EquipmentDTO, error) {
 	// 查缓存
 	cacheKey := fmt.Sprintf("equip:detail:%d", id)
-	cached, err := s.redisClient.Get(ctx, cacheKey).Result()
-	if err == nil {
-		var dto EquipmentDTO
-		if json.Unmarshal([]byte(cached), &dto) == nil {
-			return &dto, nil
+	if s.redisClient != nil {
+		cached, err := s.redisClient.Get(ctx, cacheKey).Result()
+		if err == nil {
+			var dto EquipmentDTO
+			if json.Unmarshal([]byte(cached), &dto) == nil {
+				return &dto, nil
+			}
 		}
 	}
 
@@ -129,8 +131,10 @@ func (s *EquipmentService) GetByID(ctx context.Context, id uint) (*EquipmentDTO,
 	dto := toEquipmentDTO(equip)
 
 	// 写缓存
-	data, _ := json.Marshal(dto)
-	s.redisClient.Set(ctx, cacheKey, data, 60*time.Second)
+	if s.redisClient != nil {
+		data, _ := json.Marshal(dto)
+		s.redisClient.Set(ctx, cacheKey, data, 60*time.Second)
+	}
 
 	return dto, nil
 }
@@ -141,11 +145,13 @@ func (s *EquipmentService) ListPage(ctx context.Context, req *ListEquipReq) (*Pa
 
 	// 查缓存
 	cacheKey := buildListCacheKey(req)
-	cached, err := s.redisClient.Get(ctx, cacheKey).Result()
-	if err == nil {
-		var result PageResult
-		if json.Unmarshal([]byte(cached), &result) == nil {
-			return &result, nil
+	if s.redisClient != nil {
+		cached, err := s.redisClient.Get(ctx, cacheKey).Result()
+		if err == nil {
+			var result PageResult
+			if json.Unmarshal([]byte(cached), &result) == nil {
+				return &result, nil
+			}
 		}
 	}
 
@@ -168,8 +174,10 @@ func (s *EquipmentService) ListPage(ctx context.Context, req *ListEquipReq) (*Pa
 	}
 
 	// 写缓存 (TTL 30s)
-	data, _ := json.Marshal(result)
-	s.redisClient.Set(ctx, cacheKey, data, 30*time.Second)
+	if s.redisClient != nil {
+		data, _ := json.Marshal(result)
+		s.redisClient.Set(ctx, cacheKey, data, 30*time.Second)
+	}
 
 	return result, nil
 }
@@ -274,10 +282,16 @@ func (s *EquipmentService) InvalidateEquipmentCache(ctx context.Context, equipID
 }
 
 func (s *EquipmentService) invalidateDetailCache(ctx context.Context, id uint) {
+	if s.redisClient == nil {
+		return
+	}
 	s.redisClient.Del(ctx, fmt.Sprintf("equip:detail:%d", id))
 }
 
 func (s *EquipmentService) invalidateListCache(ctx context.Context) {
+	if s.redisClient == nil {
+		return
+	}
 	iter := s.redisClient.Scan(ctx, 0, "equip:list:*", 100).Iterator()
 	for iter.Next(ctx) {
 		s.redisClient.Del(ctx, iter.Val())
