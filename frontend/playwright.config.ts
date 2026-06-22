@@ -21,20 +21,21 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     trace: CI ? 'on-first-retry' : 'off',
   },
-  // Auto-start dev server in CI (webServer is not used locally — dev.ps1 handles that)
+  // Auto-start dev servers in CI (webServer is not used locally — dev.ps1 handles that)
   webServer: CI
     ? [
         {
-          command: 'cd ../backend && go run ./cmd/main.go',
+          // Pre-built binary (see CI build step) — much faster than go run
+          command: 'cd ../backend && ./server',
           port: 8080,
-          reuseExistingServer: true,
-          timeout: 30000,
+          reuseExistingServer: false,
+          timeout: 60000,
         },
         {
-          command: 'npx vite --port 5173',
+          command: 'npx vite --port 5173 --strictPort',
           port: 5173,
-          reuseExistingServer: true,
-          timeout: 15000,
+          reuseExistingServer: false,
+          timeout: 30000,
         },
       ]
     : undefined,

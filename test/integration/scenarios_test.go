@@ -21,6 +21,7 @@ import (
 	"manage_system/service"
 
 	"github.com/casbin/casbin/v2"
+	casbinmodel "github.com/casbin/casbin/v2/model"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
@@ -56,8 +57,8 @@ func setupIntegrationTest(t *testing.T) *TestHarness {
 	})
 	require.NoError(t, err)
 
-	// Setup Casbin with SQLite adapter
-	casbinEnforcer, err := casbin.NewEnforcer(`
+	// Setup Casbin model
+	casbinModel, err := casbinmodel.NewModelFromString(`
 [request_definition]
 r = sub, obj, act
 
@@ -73,6 +74,8 @@ e = some(where (p.eft == allow))
 [matchers]
 m = g(r.sub, p.sub) && keyMatch(r.obj, p.obj) && regexMatch(r.act, p.act)
 `)
+	require.NoError(t, err)
+	casbinEnforcer, err := casbin.NewEnforcer(casbinModel)
 	require.NoError(t, err)
 
 	// Setup JWT

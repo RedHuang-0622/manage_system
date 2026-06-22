@@ -94,7 +94,7 @@ func TestRecovery_PanicTerminatesRequest(t *testing.T) {
 	executed := false
 	router.GET("/panic-chain", func(c *gin.Context) {
 		panic("stop here")
-		executed = true // unreachable
+		// executed = true — unreachable by design; kept as comment for test intent
 	})
 
 	w := httptest.NewRecorder()

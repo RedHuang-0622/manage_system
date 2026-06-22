@@ -338,24 +338,14 @@ jobs:
             max_age: 1
           EOF
 
-      - name: Start backend
-        run: |
-          cd backend
-          go run ./cmd/main.go &
-          # Wait for backend to be ready
-          for i in $(seq 1 30); do
-            if curl -s http://localhost:8080/api/v1/health | grep -q '"status"'; then
-              echo "Backend is ready"
-              break
-            fi
-            echo "Waiting for backend... ($i/30)"
-            sleep 2
-          done
+      - name: Build backend binary
+        run: cd backend && go build -o server ./cmd/main.go
 
       - name: Run Playwright e2e tests
         run: cd frontend && npx playwright test
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:5173
+          CI: true
 
       - name: Upload Playwright report
         if: always()
