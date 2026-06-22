@@ -212,21 +212,21 @@ func seedData(db *gorm.DB, enforcer *casbin.Enforcer, logger *zap.Logger) {
 		// super_admin: 全局管理
 		{"super_admin", "/api/v1/*", ".*"},
 		// lab_admin: 实验室负责人
-		{"lab_admin", "/api/v1/users*", ".*"},
-		{"lab_admin", "/api/v1/equipments*", ".*"},
-		{"lab_admin", "/api/v1/borrows*", ".*"},
-		{"lab_admin", "/api/v1/roles*", "GET"},
+		{"lab_admin", "/api/v1/users/*", ".*"},
+		{"lab_admin", "/api/v1/equipments/*", ".*"},
+		{"lab_admin", "/api/v1/borrows/*", ".*"},
+		{"lab_admin", "/api/v1/roles/*", "GET"},
 		{"lab_admin", "/api/v1/auth/logout", "POST"},
 		{"lab_admin", "/api/v1/auth/refresh", "POST"},
 		// equipment_manager: 设备管理员
-		{"equipment_manager", "/api/v1/equipments*", ".*"},
-		{"equipment_manager", "/api/v1/borrows*", ".*"},
+		{"equipment_manager", "/api/v1/equipments/*", ".*"},
+		{"equipment_manager", "/api/v1/borrows/*", ".*"},
 		{"equipment_manager", "/api/v1/roles", "GET"},
 		{"equipment_manager", "/api/v1/auth/logout", "POST"},
 		{"equipment_manager", "/api/v1/auth/refresh", "POST"},
 		{"equipment_manager", "/api/v1/users/\\d+/password", "PUT"},
 		// member: 普通成员
-		{"member", "/api/v1/equipments*", "GET"},
+		{"member", "/api/v1/equipments/*", "GET"},
 		{"member", "/api/v1/borrows/apply", "POST"},
 		{"member", "/api/v1/borrows/my", "GET"},
 		{"member", "/api/v1/borrows/\\d+/return", "POST"},
@@ -236,7 +236,7 @@ func seedData(db *gorm.DB, enforcer *casbin.Enforcer, logger *zap.Logger) {
 		{"member", "/api/v1/auth/logout", "POST"},
 		{"member", "/api/v1/auth/refresh", "POST"},
 		// viewer: 观察员（只读）
-		{"viewer", "/api/v1/equipments*", "GET"},
+		{"viewer", "/api/v1/equipments/*", "GET"},
 		{"viewer", "/api/v1/borrows/my", "GET"},
 		{"viewer", "/api/v1/borrows/pending", "GET"},
 		{"viewer", "/api/v1/roles", "GET"},

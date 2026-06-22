@@ -110,13 +110,13 @@ m = g(r.sub, p.sub) && keyMatch2(r.obj, p.obj) && regexMatch(r.act, p.act)
 	// Seed Casbin policies
 	policies := [][]string{
 		{"super_admin", "/api/v1/*", ".*"},
-		{"lab_admin", "/api/v1/users*", ".*"},
-		{"lab_admin", "/api/v1/equipments*", ".*"},
-		{"lab_admin", "/api/v1/borrows*", ".*"},
-		{"lab_admin", "/api/v1/roles*", "GET"},
+		{"lab_admin", "/api/v1/users/*", ".*"},
+		{"lab_admin", "/api/v1/equipments/*", ".*"},
+		{"lab_admin", "/api/v1/borrows/*", ".*"},
+		{"lab_admin", "/api/v1/roles/*", "GET"},
 		{"lab_admin", "/api/v1/auth/logout", "POST"},
 		{"lab_admin", "/api/v1/auth/refresh", "POST"},
-		{"member", "/api/v1/equipments*", "GET"},
+		{"member", "/api/v1/equipments/*", "GET"},
 		{"member", "/api/v1/borrows/apply", "POST"},
 		{"member", "/api/v1/borrows/my", "GET"},
 		{"member", "/api/v1/borrows/\\d+/return", "POST"},
