@@ -1,6 +1,7 @@
 package middleware_test
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -92,7 +93,7 @@ func TestAuthMiddleware_BlacklistedToken(t *testing.T) {
 	require.NoError(t, err)
 
 	// Add to blacklist
-	err = jwtService.AddToBlacklist(token, time.Now().Add(time.Hour))
+	err = jwtService.AddToBlacklist(context.Background(), token, time.Now().Add(time.Hour))
 	require.NoError(t, err)
 
 	w := httptest.NewRecorder()

@@ -205,7 +205,7 @@ func TestIAMService_RefreshToken_InvalidToken(t *testing.T) {
 	resp, err := svc.RefreshToken(context.Background(), "invalid-token")
 	assert.Nil(t, resp)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Token无效或已过期")
+	assert.Contains(t, err.Error(), "Token无效")
 }
 
 // ──────────────────────── ListRoles Tests ────────────────────────

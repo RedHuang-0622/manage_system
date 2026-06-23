@@ -1,6 +1,7 @@
 package pkg_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -126,14 +127,14 @@ func TestJWT_AddToBlacklist_Success(t *testing.T) {
 	require.NoError(t, err)
 
 	// Initially not blacklisted
-	assert.False(t, svc.IsInBlacklist(token))
+	assert.False(t, svc.IsInBlacklist(context.Background(), token))
 
 	// Add to blacklist
-	err = svc.AddToBlacklist(token, time.Now().Add(time.Hour))
+	err = svc.AddToBlacklist(context.Background(), token, time.Now().Add(time.Hour))
 	require.NoError(t, err)
 
 	// Now should be blacklisted
-	assert.True(t, svc.IsInBlacklist(token))
+	assert.True(t, svc.IsInBlacklist(context.Background(), token))
 }
 
 func TestJWT_IsInBlacklist_NotAdded(t *testing.T) {
@@ -142,7 +143,7 @@ func TestJWT_IsInBlacklist_NotAdded(t *testing.T) {
 	token, _, err := svc.GenerateToken(1, "user", 1, "role")
 	require.NoError(t, err)
 
-	assert.False(t, svc.IsInBlacklist(token))
+	assert.False(t, svc.IsInBlacklist(context.Background(), token))
 }
 
 func TestJWT_AddToBlacklist_Idempotent(t *testing.T) {
@@ -152,12 +153,12 @@ func TestJWT_AddToBlacklist_Idempotent(t *testing.T) {
 	require.NoError(t, err)
 
 	// Add twice - should not error
-	err = svc.AddToBlacklist(token, time.Now().Add(time.Hour))
+	err = svc.AddToBlacklist(context.Background(), token, time.Now().Add(time.Hour))
 	require.NoError(t, err)
-	err = svc.AddToBlacklist(token, time.Now().Add(time.Hour))
+	err = svc.AddToBlacklist(context.Background(), token, time.Now().Add(time.Hour))
 	require.NoError(t, err, "double blacklist should be idempotent")
 
-	assert.True(t, svc.IsInBlacklist(token))
+	assert.True(t, svc.IsInBlacklist(context.Background(), token))
 }
 
 func TestJWT_Blacklist_TTLExpires(t *testing.T) {
@@ -167,14 +168,14 @@ func TestJWT_Blacklist_TTLExpires(t *testing.T) {
 	require.NoError(t, err)
 
 	// Add with short TTL
-	err = svc.AddToBlacklist(token, time.Now().Add(1*time.Second))
+	err = svc.AddToBlacklist(context.Background(), token, time.Now().Add(1*time.Second))
 	require.NoError(t, err)
-	assert.True(t, svc.IsInBlacklist(token))
+	assert.True(t, svc.IsInBlacklist(context.Background(), token))
 
 	// Fast forward time past TTL
 	mr.FastForward(2 * time.Second)
 
-	assert.False(t, svc.IsInBlacklist(token), "blacklist entry should expire after TTL")
+	assert.False(t, svc.IsInBlacklist(context.Background(), token), "blacklist entry should expire after TTL")
 }
 
 func TestJWT_Blacklist_AlreadyExpiredToken(t *testing.T) {
@@ -184,8 +185,8 @@ func TestJWT_Blacklist_AlreadyExpiredToken(t *testing.T) {
 	require.NoError(t, err)
 
 	// Try to add with already-passed expiry
-	err = svc.AddToBlacklist(token, time.Now().Add(-1*time.Hour))
+	err = svc.AddToBlacklist(context.Background(), token, time.Now().Add(-1*time.Hour))
 	require.NoError(t, err, "adding expired token to blacklist should not error")
 
-	assert.False(t, svc.IsInBlacklist(token), "token with expired TTL should not be blacklisted")
+	assert.False(t, svc.IsInBlacklist(context.Background(), token), "token with expired TTL should not be blacklisted")
 }
