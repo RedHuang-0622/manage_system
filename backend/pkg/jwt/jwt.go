@@ -88,6 +88,29 @@ func genJTI() (string, error) {
 	return fmt.Sprintf("%d-%x-%x", time.Now().UnixNano(), b, n), nil
 }
 
+// ParseTokenForRefresh 解析 token 但不验证过期时间 — 刷新端点专用。
+// 签名、黑名单等检查由 RefreshToken handler 单独完成。
+func (s *Service) ParseTokenForRefresh(tokenString string) (*Claims, error) {
+	claims := &Claims{}
+	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+	_, err := parser.ParseWithClaims(tokenString, claims,
+		func(t *jwt.Token) (interface{}, error) {
+			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("非预期的签名方法: %v", t.Header["alg"])
+			}
+			return []byte(s.secret), nil
+		})
+
+	if err != nil {
+		return nil, err
+	}
+	if claims.ID == "" {
+		return nil, fmt.Errorf("Token无效")
+	}
+
+	return claims, nil
+}
+
 func (s *Service) ParseToken(tokenString string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{},
 		func(t *jwt.Token) (interface{}, error) {
@@ -109,7 +132,7 @@ func (s *Service) ParseToken(tokenString string) (*Claims, error) {
 	return claims, nil
 }
 
-func (s *Service) AddToBlacklist(tokenString string, expireAt time.Time) error {
+func (s *Service) AddToBlacklist(ctx context.Context, tokenString string, expireAt time.Time) error {
 	hash := sha256hex(tokenString)
 	ttl := time.Until(expireAt)
 	if ttl <= 0 {
@@ -123,10 +146,15 @@ func (s *Service) AddToBlacklist(tokenString string, expireAt time.Time) error {
 	}
 
 	key := "jwt:blacklist:" + hash
-	return s.redisClient.Set(context.Background(), key, "1", ttl).Err()
+	// Use caller's context (request-scoped), with a short timeout so a slow
+	// Redis cannot hold the goroutine hostage after the HTTP client has
+	// already disconnected.
+	redisCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	return s.redisClient.Set(redisCtx, key, "1", ttl).Err()
 }
 
-func (s *Service) IsInBlacklist(tokenString string) bool {
+func (s *Service) IsInBlacklist(ctx context.Context, tokenString string) bool {
 	hash := sha256hex(tokenString)
 
 	if s.redisClient == nil {
@@ -142,7 +170,9 @@ func (s *Service) IsInBlacklist(tokenString string) bool {
 	}
 
 	key := "jwt:blacklist:" + hash
-	val, err := s.redisClient.Get(context.Background(), key).Result()
+	redisCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	val, err := s.redisClient.Get(redisCtx, key).Result()
 	if err != nil || val != "1" {
 		return false
 	}

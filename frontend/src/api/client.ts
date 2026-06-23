@@ -3,7 +3,7 @@ import { useAuthStore } from '../store/auth';
 import { ErrCode } from './types';
 
 const client = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
+  baseURL: '/api/v1',
   timeout: 8000,
   headers: { 'Content-Type': 'application/json' },
 });
@@ -21,6 +21,20 @@ client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   }
   return config;
 });
+
+// ── Backend health watchdog ──
+// Counts consecutive network/timeout errors. When the backend is
+// unreachable, every request gets ECONNABORTED (8s axios timeout).
+// Without recovery, the user sees a frozen UI with no data loaded.
+// After CONSECUTIVE_TIMEOUT_THRESHOLD failures, force redirect to
+// login so the user can recover (page reload → reconnect when backend
+// is back, rather than sitting in a broken state).
+const CONSECUTIVE_TIMEOUT_THRESHOLD = 3;
+let consecutiveTimeouts = 0;
+
+function resetConsecutiveTimeouts() {
+  consecutiveTimeouts = 0;
+}
 
 // ── Token refresh lock (prevents concurrent refresh race) ──
 
@@ -70,15 +84,24 @@ function getTokenRemainingSec(): number {
   }
 }
 
+// Separate lock for proactive refresh — prevents the stampede where N
+// concurrent success responses each fire a /auth/refresh request. The
+// first blacklists the old token; the N-1 subsequent requests all fail
+// (token already blacklisted), needlessly increasing backend load.
+let isProactiveRefreshing = false;
+
 async function maybeProactiveRefresh() {
-  if (isRefreshing) return;
+  if (isRefreshing || isProactiveRefreshing) return;
   if (getTokenRemainingSec() > PROACTIVE_REFRESH_THRESHOLD_SEC) return;
+  isProactiveRefreshing = true;
   try {
     const newToken = await refreshTokenRequest();
     useAuthStore.getState().setToken(newToken);
     console.log('[auth] Token proactively refreshed');
   } catch {
     // Silently fail — the reactive 401 interceptor will handle actual expiry
+  } finally {
+    isProactiveRefreshing = false;
   }
 }
 
@@ -86,6 +109,7 @@ async function maybeProactiveRefresh() {
 
 client.interceptors.response.use(
   (response) => {
+    resetConsecutiveTimeouts();
     if (import.meta.env.DEV) {
       const ts = new Date().toISOString().slice(11, 23);
       console.log(`[axios ${ts}] ← ${response.status} ${response.config.url}`);
@@ -104,6 +128,31 @@ client.interceptors.response.use(
     }
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
     const data = error.response?.data;
+
+    // Track consecutive network/timeout errors. When the backend is
+    // unreachable (no HTTP response at all), every request gets
+    // ECONNABORTED or ERR_NETWORK. Without recovery, the user sees
+    // a frozen UI. After N consecutive failures, force redirect to
+    // login so the user can recover when the backend comes back.
+    if (!error.response) {
+      consecutiveTimeouts++;
+      if (consecutiveTimeouts >= CONSECUTIVE_TIMEOUT_THRESHOLD) {
+        resetConsecutiveTimeouts();
+        useAuthStore.getState().logout();
+        window.location.href = '/login';
+        return Promise.reject(error);
+      }
+    }
+
+    // If /auth/refresh itself returns 401, reject immediately without retry/queue.
+    // Deadlock prevention: when the token is expired, /auth/refresh (which sits
+    // behind Auth middleware on the backend) also returns 401. Without this guard,
+    // the interceptor pushes the refresh request into failedQueue where it waits
+    // forever — the only code that can resolve the queue is the interceptor itself,
+    // which is blocked awaiting refreshTokenRequest().
+    if (error.config?.url?.includes('/auth/refresh')) {
+      return Promise.reject(error);
+    }
 
     // Only handle 401 with code 2004 (token expired)
     if (error.response?.status === 401 && data?.code === ErrCode.ErrTokenInvalid && !originalRequest._retry) {
@@ -125,6 +174,14 @@ client.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
 
+      // Save the token we are trying to refresh. A concurrent proactive
+      // refresh (maybeProactiveRefresh on line 94) may succeed and update
+      // the store with a fresh token before our reactive attempt completes.
+      // If our attempt fails, we check whether the store token has changed —
+      // if so, the proactive refresh won the race and we should adopt its
+      // token instead of logging the user out.
+      const tokenBeforeRefresh = useAuthStore.getState().token;
+
       try {
         const newToken = await refreshTokenRequest();
         useAuthStore.getState().setToken(newToken);
@@ -134,6 +191,16 @@ client.interceptors.response.use(
         }
         return client(originalRequest);
       } catch (refreshError) {
+        // If a concurrent proactive refresh already updated the token,
+        // adopt it rather than logging the user out unnecessarily.
+        const currentToken = useAuthStore.getState().token;
+        if (currentToken && currentToken !== tokenBeforeRefresh) {
+          processQueue(null, currentToken);
+          if (originalRequest.headers) {
+            originalRequest.headers.Authorization = `Bearer ${currentToken}`;
+          }
+          return client(originalRequest);
+        }
         processQueue(refreshError, null);
         useAuthStore.getState().logout();
         window.location.href = '/login';

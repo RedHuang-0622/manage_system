@@ -1,7 +1,8 @@
 import { Table, Select, Space, Card, Empty, Alert } from 'antd';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { listMyRecords, cancelBorrow } from '../../api/borrows';
 import { usePagination } from '../../hooks/usePagination';
+import { useRequest } from '../../hooks/useRequest';
 import StatusBadge from '../../components/StatusBadge';
 import type { BorrowRecord } from '../../api/types';
 import { Button, message, Popconfirm } from 'antd';
@@ -36,7 +37,7 @@ export default function MyRecords() {
     }
   };
 
-  useEffect(() => { fetchData(); }, [pag.page, pag.pageSize, status]);
+  useRequest(() => { fetchData(); }, [pag.page, pag.pageSize, status]);
 
   const handleCancel = async (id: number) => {
     try {

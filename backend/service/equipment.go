@@ -108,10 +108,12 @@ func (s *EquipmentService) Create(ctx context.Context, req *CreateEquipReq) (*mo
 }
 
 func (s *EquipmentService) GetByID(ctx context.Context, id uint) (*EquipmentDTO, error) {
-	// 查缓存
+	// 查缓存（2s deadline — Redis 不可达时降级到 DB 查询）
 	cacheKey := fmt.Sprintf("equip:detail:%d", id)
 	if s.redisClient != nil {
-		cached, err := s.redisClient.Get(ctx, cacheKey).Result()
+		redisCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		cached, err := s.redisClient.Get(redisCtx, cacheKey).Result()
+		cancel()
 		if err == nil {
 			var dto EquipmentDTO
 			if json.Unmarshal([]byte(cached), &dto) == nil {
@@ -130,10 +132,14 @@ func (s *EquipmentService) GetByID(ctx context.Context, id uint) (*EquipmentDTO,
 
 	dto := toEquipmentDTO(equip)
 
-	// 写缓存
+	// 写缓存（异步 — 慢 Redis 不阻塞 API 响应）
 	if s.redisClient != nil {
 		data, _ := json.Marshal(dto)
-		s.redisClient.Set(ctx, cacheKey, data, 60*time.Second)
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			s.redisClient.Set(ctx, cacheKey, data, 60*time.Second)
+		}()
 	}
 
 	return dto, nil
@@ -143,10 +149,12 @@ func (s *EquipmentService) ListPage(ctx context.Context, req *ListEquipReq) (*Pa
 	p, ps, offset := response.NormalizePagination(req.Page, req.PageSize, 12, 100)
 	req.Page, req.PageSize = p, ps
 
-	// 查缓存
+	// 查缓存（2s deadline — Redis 不可达时降级到 DB 查询，避免 Vite proxy 7s 超时）
 	cacheKey := buildListCacheKey(req)
 	if s.redisClient != nil {
-		cached, err := s.redisClient.Get(ctx, cacheKey).Result()
+		redisCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		cached, err := s.redisClient.Get(redisCtx, cacheKey).Result()
+		cancel()
 		if err == nil {
 			var result PageResult
 			if json.Unmarshal([]byte(cached), &result) == nil {
@@ -173,10 +181,14 @@ func (s *EquipmentService) ListPage(ctx context.Context, req *ListEquipReq) (*Pa
 		List:     dtos,
 	}
 
-	// 写缓存 (TTL 30s)
+	// 写缓存（异步 — 慢 Redis 不阻塞 API 响应）
 	if s.redisClient != nil {
 		data, _ := json.Marshal(result)
-		s.redisClient.Set(ctx, cacheKey, data, 30*time.Second)
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			s.redisClient.Set(ctx, cacheKey, data, 30*time.Second)
+		}()
 	}
 
 	return result, nil

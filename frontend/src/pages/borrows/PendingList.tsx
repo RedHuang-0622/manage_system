@@ -1,5 +1,6 @@
 import { Table, Button, Input, Space, message, Popconfirm, Empty, Alert } from 'antd';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useRequest } from '../../hooks/useRequest';
 import { listPendingRecords, approveBorrow } from '../../api/borrows';
 import { usePagination } from '../../hooks/usePagination';
 import StatusBadge from '../../components/StatusBadge';
@@ -32,7 +33,7 @@ export default function PendingList() {
     } finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchData(); }, [pag.page, pag.pageSize]);
+  useRequest(() => { fetchData(); }, [pag.page, pag.pageSize]);
 
   const handleApprove = async (id: number, approve: boolean, approveNote: string) => {
     try {

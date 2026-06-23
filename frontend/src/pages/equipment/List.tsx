@@ -1,7 +1,8 @@
 import { useSearchParams } from 'react-router-dom';
 import { Table, Button, Input, Select, Space, Card } from 'antd';
 import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useRequest } from '../../hooks/useRequest';
 import { useNavigate } from 'react-router-dom';
 import { listEquipments } from '../../api/equipment';
 import { usePagination } from '../../hooks/usePagination';
@@ -39,7 +40,7 @@ export default function EquipList() {
     }
   };
 
-  useEffect(() => { fetchData(pag.page, pag.pageSize); }, [pag.page, pag.pageSize]);
+  useRequest(() => { fetchData(pag.page, pag.pageSize); }, [pag.page, pag.pageSize]);
 
   const handleSearch = () => {
     if (pag.page === 1) {

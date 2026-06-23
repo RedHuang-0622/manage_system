@@ -42,8 +42,8 @@ func Auth(jwtService *jwt.Service, logger *zap.Logger) gin.HandlerFunc {
 			return
 		}
 
-		// 检查黑名单
-		if jwtService.IsInBlacklist(tokenStr) {
+		// 检查黑名单（传递请求 context — Redis 慢时 goroutine 可被取消）
+		if jwtService.IsInBlacklist(c.Request.Context(), tokenStr) {
 			logger.Warn("auth_blacklisted",
 				zap.String("path", c.Request.URL.Path),
 				zap.String("token_prefix", tokenStr[:min(10, len(tokenStr))]),

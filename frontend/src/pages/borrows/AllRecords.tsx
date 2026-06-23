@@ -1,5 +1,6 @@
 import { Table, Select, Input, Space, Card, Button, message, Empty, Alert } from 'antd';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useRequest } from '../../hooks/useRequest';
 import { listAllRecords, returnBorrow } from '../../api/borrows';
 import { usePagination } from '../../hooks/usePagination';
 import StatusBadge from '../../components/StatusBadge';
@@ -38,7 +39,7 @@ export default function AllRecords() {
     } finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchData(); }, [pag.page, pag.pageSize, status, userId]);
+  useRequest(() => { fetchData(); }, [pag.page, pag.pageSize, status, userId]);
 
   const handleReturn = async (id: number) => {
     try {

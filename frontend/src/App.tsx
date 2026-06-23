@@ -27,8 +27,11 @@ const BorrowApply = lazy(() => import('./pages/borrows/Apply'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
-  const token = useAuthStore((s) => s.token);
-  if (!token) {
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
+  // Check both token existence AND expiry — an expired token is as good as
+  // no token; if we let it through, every API call will 401 and trigger
+  // the deadlocked refresh flow.
+  if (!isLoggedIn()) {
     return <Navigate to="/login" replace />;
   }
   return <>{children}</>;

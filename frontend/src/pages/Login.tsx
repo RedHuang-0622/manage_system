@@ -2,19 +2,19 @@ import { useState } from 'react';
 import { Form, Input, Button } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useAuth } from '../hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '../store/auth';
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
-  const navigate = useNavigate();
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn());
 
-  // Already logged in? Redirect to dashboard
+  // Already logged in? Redirect to dashboard.
+  // Use <Navigate> (declarative) instead of useNavigate() (imperative) to
+  // avoid React's "cannot update BrowserRouter while rendering" warning.
   if (isLoggedIn) {
-    navigate('/', { replace: true });
-    return null;
+    return <Navigate to="/" replace />;
   }
 
   const onFinish = async (values: { username: string; password: string }) => {

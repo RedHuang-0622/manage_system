@@ -93,24 +93,24 @@ func (s *IAMService) Logout(ctx context.Context, tokenStr string) error {
 		return nil // 即使解析失败也视为登出成功（Token可能已过期）
 	}
 	if claims.ExpiresAt != nil {
-		return s.jwtService.AddToBlacklist(tokenStr, claims.ExpiresAt.Time)
+		return s.jwtService.AddToBlacklist(ctx, tokenStr, claims.ExpiresAt.Time)
 	}
 	return nil
 }
 
 func (s *IAMService) RefreshToken(ctx context.Context, oldToken string) (*LoginResp, error) {
-	// 验证旧Token
-	claims, err := s.jwtService.ParseToken(oldToken)
+	// 验证旧Token（允许过期 — refresh 的目的就是更换过期的 token）
+	claims, err := s.jwtService.ParseTokenForRefresh(oldToken)
 	if err != nil {
-		return nil, fmt.Errorf("[%d] Token无效或已过期", errcode.ErrTokenInvalid)
+		return nil, fmt.Errorf("[%d] Token无效", errcode.ErrTokenInvalid)
 	}
-	if s.jwtService.IsInBlacklist(oldToken) {
+	if s.jwtService.IsInBlacklist(ctx, oldToken) {
 		return nil, fmt.Errorf("[%d] Token已失效", errcode.ErrTokenInvalid)
 	}
 
 	// 旧Token加入黑名单
 	if claims.ExpiresAt != nil {
-		_ = s.jwtService.AddToBlacklist(oldToken, claims.ExpiresAt.Time)
+		_ = s.jwtService.AddToBlacklist(ctx, oldToken, claims.ExpiresAt.Time)
 	}
 
 	// 签发新Token
@@ -247,14 +247,20 @@ func (s *IAMService) ListUsers(ctx context.Context, req *ListUserReq) (*PageResu
 		statusFilter = &statusVal
 	}
 
-	// Cache-aside: try Redis first
+	// Cache-aside: try Redis first (with 2s deadline to avoid blocking
+	// the request when Redis is unreachable — go-redis retries 3x with
+	// 5s DialTimeout each, which can exceed Vite's 7s proxy timeout).
 	cacheKey := fmt.Sprintf("user:list:%d:%d:%s:%d:%d", p, ps, req.Keyword, statusVal, req.RoleID)
 	if s.redisClient != nil {
-		if cached, err := s.redisClient.Get(ctx, cacheKey).Result(); err == nil {
+		redisCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		if cached, err := s.redisClient.Get(redisCtx, cacheKey).Result(); err == nil {
+			cancel()
 			var result PageResult
 			if json.Unmarshal([]byte(cached), &result) == nil {
 				return &result, nil
 			}
+		} else {
+			cancel()
 		}
 	}
 
@@ -275,10 +281,14 @@ func (s *IAMService) ListUsers(ctx context.Context, req *ListUserReq) (*PageResu
 		List:     dtos,
 	}
 
-	// Write cache (TTL 60s)
+	// Write cache async — slow Redis must not delay the API response.
 	if s.redisClient != nil {
 		if data, err := json.Marshal(result); err == nil {
-			s.redisClient.Set(ctx, cacheKey, data, 60*time.Second)
+			go func() {
+				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+				defer cancel()
+				s.redisClient.Set(ctx, cacheKey, data, 60*time.Second)
+			}()
 		}
 	}
 	return result, nil

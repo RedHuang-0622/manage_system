@@ -30,15 +30,6 @@ type Dependencies struct {
 func SetupRouter(deps Dependencies) *gin.Engine {
 	r := gin.New()
 
-	// Force close: prevents Chrome's 6-connection-per-origin limit from
-	// starving concurrent requests (React StrictMode double-fires every effect).
-	// Without this, keep-alive connections accumulate until the pool is full,
-	// then all new requests queue up and hit axios's 8s timeout.
-	r.Use(func(c *gin.Context) {
-		c.Header("Connection", "close")
-		c.Next()
-	})
-
 	// 全局中间件链
 	r.Use(middleware.Recovery(deps.Logger))
 	r.Use(middleware.RequestID())
@@ -81,6 +72,10 @@ func SetupRouter(deps Dependencies) *gin.Engine {
 		} else {
 			auth.POST("/login", deps.AuthController.Login)
 		}
+		// Refresh 不放在受保护组内 — 刷新端点必须接受已过期的 token
+		//（过期 token 会被 Auth 中间件直接 reject，导致刷新死锁）。
+		// 签名验证和黑名单检查在 RefreshToken handler 内部完成。
+		auth.POST("/refresh", deps.AuthController.RefreshToken)
 	}
 
 	// 受保护路由组（中间件链: Recovery → Logger → Auth → Casbin）
@@ -90,7 +85,6 @@ func SetupRouter(deps Dependencies) *gin.Engine {
 	{
 		// 认证
 		protected.POST("/auth/logout", deps.AuthController.Logout)
-		protected.POST("/auth/refresh", deps.AuthController.RefreshToken)
 
 		// 角色
 		protected.GET("/roles", deps.AuthController.ListRoles)
