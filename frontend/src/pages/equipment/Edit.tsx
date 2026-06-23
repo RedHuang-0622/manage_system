@@ -21,7 +21,11 @@ export default function EquipEdit() {
         const resp = await getEquipment(Number(id));
         if (resp.code === 0) {
           form.setFieldsValue(resp.data);
+        } else {
+          message.error(resp.msg || '获取设备信息失败');
         }
+      } catch {
+        message.error('网络异常，请检查网络连接');
       } finally {
         setFetching(false);
       }
@@ -39,6 +43,8 @@ export default function EquipEdit() {
       } else {
         message.error(resp.msg || '更新失败');
       }
+    } catch {
+      message.error('网络异常，请检查网络连接');
     } finally {
       setLoading(false);
     }
@@ -55,6 +61,8 @@ export default function EquipEdit() {
       } else {
         message.error(resp.msg || '下架失败');
       }
+    } catch {
+      message.error('网络异常，请检查网络连接');
     } finally {
       setLoading(false);
     }

@@ -52,6 +52,7 @@ func main() {
 	sqlDB.SetMaxIdleConns(cfg.MySQL.MaxIdleConns)
 	sqlDB.SetMaxOpenConns(cfg.MySQL.MaxOpenConns)
 	sqlDB.SetConnMaxLifetime(time.Duration(cfg.MySQL.ConnMaxLifetime) * time.Second)
+	sqlDB.SetConnMaxIdleTime(5 * time.Minute) // close idle connections before MySQL does (wait_timeout defaults to 8h, but 5min is safe)
 
 	// 4. AutoMigrate
 	if err := db.AutoMigrate(

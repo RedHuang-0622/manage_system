@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { Descriptions, Button, Spin, Card, Space, Tag } from 'antd';
+import { Descriptions, Button, Spin, Card, Space, Tag, message } from 'antd';
 import { ArrowLeftOutlined, EditOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 import { getEquipment } from '../../api/equipment';
@@ -20,7 +20,13 @@ export default function EquipDetail() {
       setLoading(true);
       try {
         const resp = await getEquipment(Number(id));
-        if (resp.code === 0) setEquip(resp.data);
+        if (resp.code === 0) {
+          setEquip(resp.data);
+        } else {
+          message.error(resp.msg || '获取设备详情失败');
+        }
+      } catch {
+        message.error('网络异常，请检查网络连接');
       } finally {
         setLoading(false);
       }

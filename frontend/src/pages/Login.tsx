@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Form, Input, Button } from 'antd';
+import { Form, Input, Button, message } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useAuth } from '../hooks/useAuth';
 import { Navigate } from 'react-router-dom';
@@ -21,6 +21,8 @@ export default function Login() {
     setLoading(true);
     try {
       await login(values.username, values.password);
+    } catch {
+      message.error('网络异常，请检查网络连接');
     } finally {
       setLoading(false);
     }

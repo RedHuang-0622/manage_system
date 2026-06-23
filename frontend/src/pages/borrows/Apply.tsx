@@ -19,7 +19,9 @@ export default function BorrowApply() {
       } else {
         message.error(resp.msg || '申请失败');
       }
-    } finally {
+      } catch {
+        message.error('网络异常，请检查网络连接');
+      } finally {
       setLoading(false);
     }
   };

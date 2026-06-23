@@ -17,18 +17,24 @@ import (
 func RateLimit(rdb *redis.Client, keyPrefix string, limit int, window time.Duration) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		key := "ratelimit:" + keyPrefix + ":" + c.ClientIP()
-		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
 
 		count, err := rdb.Incr(ctx, key).Result()
 		if err != nil {
-			// Redis 不可用时放行（应配合告警）
+			// Redis 不可用时放行（fail-open），避免阻断所有登录
 			c.Next()
 			return
 		}
 
-		// 首次请求时设置 TTL
+		// 首次请求时设置 TTL。如果 Expire 失败（Redis 闪断），key 会永久
+		// 存在导致该 IP 被永久限流。失败时立即删除 key 做 fail-safe 自愈。
 		if count == 1 {
-			rdb.Expire(ctx, key, window)
+			if err := rdb.Expire(ctx, key, window).Err(); err != nil {
+				rdb.Del(context.Background(), key) // best-effort cleanup
+				c.Next()
+				return
+			}
 		}
 
 		if count > int64(limit) {

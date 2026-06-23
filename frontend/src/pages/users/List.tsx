@@ -31,7 +31,11 @@ export default function UserList() {
       if (resp.code === 0 && resp.data) {
         setData(resp.data.list);
         pag.setTotal(resp.data.total);
+      } else {
+        message.error(resp.msg || '获取用户列表失败');
       }
+    } catch {
+      message.error('网络异常，请检查网络连接');
     } finally {
       setLoading(false);
     }

@@ -15,8 +15,14 @@ export default function UserCreate() {
     (async () => {
       try {
         const resp = await listRoles();
-        if (resp.code === 0) setRoles(resp.data);
-      } catch { /* ignore */ }
+        if (resp.code === 0) {
+          setRoles(resp.data);
+        } else {
+          message.error(resp.msg || '获取角色列表失败');
+        }
+      } catch {
+        message.error('网络异常，请检查网络连接');
+      }
     })();
   }, []);
 
@@ -30,6 +36,8 @@ export default function UserCreate() {
       } else {
         message.error(resp.msg || '创建失败');
       }
+    } catch {
+      message.error('网络异常，请检查网络连接');
     } finally {
       setLoading(false);
     }

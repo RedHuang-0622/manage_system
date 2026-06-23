@@ -24,8 +24,16 @@ export default function UserEdit() {
         ]);
         if (userResp.code === 0) {
           form.setFieldsValue(userResp.data);
+        } else {
+          message.error(userResp.msg || '获取用户信息失败');
         }
-        if (rolesResp.code === 0) setRoles(rolesResp.data);
+        if (rolesResp.code === 0) {
+          setRoles(rolesResp.data);
+        } else {
+          message.error(rolesResp.msg || '获取角色列表失败');
+        }
+      } catch {
+        message.error('网络异常，请检查网络连接');
       } finally {
         setFetching(false);
       }
@@ -43,6 +51,8 @@ export default function UserEdit() {
       } else {
         message.error(resp.msg || '更新失败');
       }
+    } catch {
+      message.error('网络异常，请检查网络连接');
     } finally {
       setLoading(false);
     }

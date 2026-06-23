@@ -351,7 +351,7 @@ func (s *IAMService) UpdateUser(ctx context.Context, id uint, req *UpdateUserReq
 	}
 
 	if err := s.userDAO.UpdateFields(id, updates); err != nil {
-		return err
+		return fmt.Errorf("[%d] %w", errcode.ErrInternal, err)
 	}
 
 	s.invalidateUserCache(ctx)
@@ -375,7 +375,7 @@ func (s *IAMService) DisableUser(ctx context.Context, id uint, operatorID uint) 
 	// TODO V1.1: 将该用户的活跃Token加入黑名单
 
 	if err := s.userDAO.UpdateFields(id, map[string]interface{}{"status": 0}); err != nil {
-		return err
+		return fmt.Errorf("[%d] %w", errcode.ErrInternal, err)
 	}
 
 	s.invalidateUserCache(ctx)
@@ -387,9 +387,14 @@ func (s *IAMService) invalidateUserCache(ctx context.Context) {
 	if s.redisClient == nil {
 		return
 	}
-	iter := s.redisClient.Scan(ctx, 0, "user:list:*", 100).Iterator()
-	for iter.Next(ctx) {
-		s.redisClient.Del(ctx, iter.Val())
+	// Add timeout — called from request handlers. Without a deadline,
+	// a slow Redis makes the SCAN/DEL loop block the request goroutine,
+	// holding the HTTP connection open and piling up CLOSE_WAIT sockets.
+	redisCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	iter := s.redisClient.Scan(redisCtx, 0, "user:list:*", 100).Iterator()
+	for iter.Next(redisCtx) {
+		s.redisClient.Del(redisCtx, iter.Val())
 	}
 }
 
@@ -421,7 +426,10 @@ func (s *IAMService) ChangePassword(ctx context.Context, operatorID uint, target
 		return fmt.Errorf("[%d] %w", errcode.ErrInternal, err)
 	}
 
-	return s.userDAO.UpdateFields(targetID, map[string]interface{}{"password_hash": string(hash)})
+	if err := s.userDAO.UpdateFields(targetID, map[string]interface{}{"password_hash": string(hash)}); err != nil {
+		return fmt.Errorf("[%d] %w", errcode.ErrInternal, err)
+	}
+	return nil
 }
 
 func toUserDTO(u *models.SysUser) UserDTO {

@@ -1,5 +1,5 @@
 import { useSearchParams } from 'react-router-dom';
-import { Table, Button, Input, Select, Space, Card } from 'antd';
+import { Table, Button, Input, Select, Space, Card, message } from 'antd';
 import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { useState } from 'react';
 import { useRequest } from '../../hooks/useRequest';
@@ -34,7 +34,11 @@ export default function EquipList() {
       if (resp.code === 0 && resp.data) {
         setData(resp.data.list);
         pag.setTotal(resp.data.total);
+      } else {
+        message.error(resp.msg || '获取设备列表失败');
       }
+    } catch {
+      message.error('网络异常，请检查网络连接');
     } finally {
       setLoading(false);
     }

@@ -135,11 +135,11 @@ func (s *EquipmentService) GetByID(ctx context.Context, id uint) (*EquipmentDTO,
 	// 写缓存（异步 — 慢 Redis 不阻塞 API 响应）
 	if s.redisClient != nil {
 		data, _ := json.Marshal(dto)
-		go func() {
+			safego.Go(s.logger, func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
 			s.redisClient.Set(ctx, cacheKey, data, 60*time.Second)
-		}()
+		})
 	}
 
 	return dto, nil
@@ -184,11 +184,11 @@ func (s *EquipmentService) ListPage(ctx context.Context, req *ListEquipReq) (*Pa
 	// 写缓存（异步 — 慢 Redis 不阻塞 API 响应）
 	if s.redisClient != nil {
 		data, _ := json.Marshal(result)
-		go func() {
+			safego.Go(s.logger, func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
 			s.redisClient.Set(ctx, cacheKey, data, 30*time.Second)
-		}()
+		})
 	}
 
 	return result, nil
@@ -297,16 +297,23 @@ func (s *EquipmentService) invalidateDetailCache(ctx context.Context, id uint) {
 	if s.redisClient == nil {
 		return
 	}
-	s.redisClient.Del(ctx, fmt.Sprintf("equip:detail:%d", id))
+	redisCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	s.redisClient.Del(redisCtx, fmt.Sprintf("equip:detail:%d", id))
 }
 
 func (s *EquipmentService) invalidateListCache(ctx context.Context) {
 	if s.redisClient == nil {
 		return
 	}
-	iter := s.redisClient.Scan(ctx, 0, "equip:list:*", 100).Iterator()
-	for iter.Next(ctx) {
-		s.redisClient.Del(ctx, iter.Val())
+	// Add timeout — called from background goroutines via safego.Go with
+	// context.Background(). Without a deadline, a slow Redis makes these
+	// goroutines hang forever, piling up and leaking HTTP connections.
+	redisCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	iter := s.redisClient.Scan(redisCtx, 0, "equip:list:*", 100).Iterator()
+	for iter.Next(redisCtx) {
+		s.redisClient.Del(redisCtx, iter.Val())
 	}
 }
 

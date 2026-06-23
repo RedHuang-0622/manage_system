@@ -269,7 +269,10 @@ func (s *BorrowService) Cancel(ctx context.Context, borrowID uint, operatorID ui
 
 		record.Status = models.BorrowStatusCanceled
 		record.UpdatedAt = time.Now()
-		return s.borrowDAO.UpdateWithTx(tx, record)
+		if err := s.borrowDAO.UpdateWithTx(tx, record); err != nil {
+			return fmt.Errorf("[%d] %w", errcode.ErrInternal, err)
+		}
+		return nil
 	})
 }
 

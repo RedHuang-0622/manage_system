@@ -29,6 +29,8 @@ export default function AllRecords() {
       if (resp.code === 0 && resp.data) {
         setData(resp.data.list);
         pag.setTotal(resp.data.total);
+      } else {
+        setError(resp.msg || '获取借阅记录失败');
       }
     } catch (err: unknown) {
       const axiosErr = err as AxiosError<{ code: number; msg: string }>;

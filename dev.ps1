@@ -16,8 +16,14 @@ Write-Host "[kill] Clearing ports $backendPort / $frontendPort..." -ForegroundCo
 $prevEAP = $ErrorActionPreference
 $ErrorActionPreference = "Continue"
 
+# Kill by port
 cmd /c "for /f `"tokens=5`" %a in ('netstat -ano ^| findstr `":$backendPort `" ^| findstr LISTENING') do taskkill /F /PID %a" 2>$null
 cmd /c "for /f `"tokens=5`" %a in ('netstat -ano ^| findstr `":$frontendPort `" ^| findstr LISTENING') do taskkill /F /PID %a" 2>$null
+
+# Kill by name (catch processes that may have moved ports or are in CLOSE_WAIT)
+taskkill /F /IM server.exe 2>$null
+taskkill /F /IM main.exe 2>$null
+taskkill /F /IM node.exe /FI "WINDOWTITLE eq vite*" 2>$null
 
 $ErrorActionPreference = $prevEAP
 Start-Sleep -Seconds 2
@@ -47,9 +53,18 @@ function Start-Backend {
     Write-Host "=== [1/2] Starting backend ===" -ForegroundColor Cyan
     Write-Host "  URL: http://localhost:$backendPort" -ForegroundColor Gray
 
+    # Rebuild binary (use 'go build' NOT 'go run' — 'go run' can serve stale
+    # build-cache artifacts, silently running old code without our timeout fixes).
+    Write-Host "  Building..." -ForegroundColor DarkGray
+    $build = & go build -o "$backendDir\server.exe" "$backendDir\cmd\main.go" 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "  ERROR: Build failed" -ForegroundColor Red
+        Write-Host "  $build" -ForegroundColor DarkRed
+        exit 1
+    }
+
     $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = (Get-Command go -ErrorAction Stop).Source
-    $psi.Arguments = "run ./cmd/main.go"
+    $psi.FileName = "$backendDir\server.exe"
     $psi.WorkingDirectory = $backendDir
     $psi.UseShellExecute = $false
     $psi.RedirectStandardOutput = $true

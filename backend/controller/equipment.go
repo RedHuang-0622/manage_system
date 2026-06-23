@@ -1,10 +1,12 @@
 package controller
 
 import (
+	"context"
 	"strconv"
 
 	"manage_system/pkg/errcode"
 	"manage_system/pkg/response"
+	"manage_system/pkg/safego"
 	"manage_system/service"
 
 	"github.com/gin-gonic/gin"
@@ -105,7 +107,9 @@ func (ctl *EquipmentController) Disable(c *gin.Context) {
 	}
 
 	// 事务成功后失效缓存
-	go ctl.equipService.InvalidateEquipmentCache(c.Request.Context(), uint(id))
+	safego.Go(nil, func() {
+		ctl.equipService.InvalidateEquipmentCache(context.Background(), uint(id))
+	})
 
 	response.Success(c, gin.H{"msg": "设备已下架"})
 }

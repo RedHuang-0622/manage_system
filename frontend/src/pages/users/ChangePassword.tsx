@@ -21,6 +21,8 @@ export default function ChangePassword() {
       } else {
         message.error(resp.msg || '修改失败');
       }
+    } catch {
+      message.error('网络异常，请检查网络连接');
     } finally {
       setLoading(false);
     }
